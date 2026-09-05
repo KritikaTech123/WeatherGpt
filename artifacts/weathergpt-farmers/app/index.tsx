@@ -1668,7 +1668,6 @@ function BottomNav({
     { id: 'voice', label: copy.nav.voice, icon: 'volume-2' },
     { id: 'map', label: copy.nav.map, icon: 'map' },
     { id: 'community', label: copy.nav.farmers, icon: 'users' },
-    { id: 'profile', label: copy.nav.profile, icon: 'user' },
   ];
   return (
     <View style={[styles.bottomNav, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 10) }]}>
