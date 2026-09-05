@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 
 type Screen = 'home' | 'chat' | 'map' | 'community';
 type IconName = React.ComponentProps<typeof Feather>['name'];
+type Language = 'English' | 'Hindi' | 'Marathi';
 
 type CommunityPost = {
   id: string;
@@ -61,35 +62,305 @@ const initialPosts: CommunityPost[] = [
   },
 ];
 
-const starterMessages: ChatMessage[] = [
-  {
-    id: 'welcome',
-    role: 'assistant',
-    message:
-      'Namaste! I’m here to help you plan around the weather. Ask me about rain, watering, spraying, or your crop.',
+const translations = {
+  English: {
+    home: {
+      eyebrow: 'GOOD MORNING',
+      greeting: 'Namaste, farmer',
+      location: 'Nashik, Maharashtra',
+      today: 'TODAY',
+      condition: 'Warm with a gentle breeze',
+      sunrise: 'Sunrise',
+      rainChance: 'Rain chance',
+      wind: 'Wind',
+      dayAtGlance: 'Your day at a glance',
+      seeWeek: 'See week',
+      fieldTip: 'FIELD TIP',
+      fieldTipText: 'It’s a good day to spray and work in the field.',
+      askWeather: 'Ask WeatherGPT',
+      openMap: 'Open field map',
+      askFarmers: 'Ask farmers',
+      thisWeek: 'This week on your farm',
+      cottonField: 'Cotton field',
+      waterIn: 'Next watering in 2 days',
+      healthy: 'Healthy',
+    },
+    chat: {
+      title: 'Weather guide',
+      welcome: 'Namaste! I’m here to help you plan around the weather. Ask me about rain, watering, spraying, or your crop.',
+      ready: 'Ready to help',
+      today: 'TODAY, 9:41 AM',
+      tryAsking: 'TRY ASKING',
+      quickQuestions: [
+        { label: 'Can I spray today?', icon: 'droplet' as IconName },
+        { label: 'Will it rain this week?', icon: 'cloud-rain' as IconName },
+        { label: 'When should I water?', icon: 'sun' as IconName },
+      ],
+      placeholder: 'Ask about your farm',
+      listening: 'Listening…',
+      askByVoice: 'Ask by voice',
+      stopListening: 'Stop listening',
+      sendQuestion: 'Send question',
+      thinking: 'Thinking about your field…',
+      footnote: 'Weather guidance is a helper, not a replacement for local expert advice.',
+      sprayAnswer: 'Yes, today looks suitable for spraying: light wind and only an 18% chance of rain. Finish before 4 PM and avoid the hottest part of the afternoon.',
+      rainAnswer: 'Wednesday has the best chance of rain at about 60%. You can plan field work for today and tomorrow, then check again Wednesday morning.',
+      waterAnswer: 'Your cotton field can wait two more days. Water early in the morning, close to the roots, so less moisture is lost to the sun.',
+      generalAnswer: 'For Nashik today: warm, dry, and gently windy. It is a good day for field work. What crop would you like advice for?',
+    },
+    map: {
+      title: 'Field map',
+      subtitle: 'Tap a place to see its weather and field advice.',
+      yourFarm: 'Your farm',
+      dindori: 'Dindori',
+      sinnar: 'Sinnar',
+      lightRain: 'Light rain',
+      clear: 'Clear',
+      rain: 'Rain',
+      wind: 'Wind',
+      fields: 'Fields',
+      rainDetail: '18% rain chance · Good field day',
+      windDetail: '12 km/h · Gentle breeze',
+      fieldsDetail: 'Cotton and tomato fields',
+      updated: 'Updated 6 minutes ago · Based on local forecast',
+    },
+    community: {
+      title: 'Farmer interaction',
+      lead: 'Learn from the field',
+      sub: 'Local questions, trusted farmer tips.',
+      share: 'Share with farmers',
+      shareHint: 'Ask a question or share a tip from your field.',
+      placeholder: 'What would you like to share?',
+      post: 'Post to community',
+      addMoreTitle: 'Add a little more',
+      addMoreMessage: 'Write a question or tip for your farmer friends.',
+      banner: 'Be kind, share what works, and help a farmer nearby.',
+      conversations: 'Nearby conversations',
+      nearby: 'Nashik',
+      reply: 'Reply',
+      justNow: 'Just now',
+      you: 'You',
+      myField: 'My field',
+      emptyTitle: 'Start the first conversation',
+      emptyText: 'Share a question or tip from your field.',
+    },
+    nav: { today: 'Today', ask: 'Ask', map: 'Map', farmers: 'Farmers' },
+    language: {
+      title: 'Choose your language',
+      hint: 'WeatherGPT will use this language across the app.',
+      english: 'English',
+      hindi: 'हिंदी',
+      marathi: 'मराठी',
+    },
+    common: { back: 'Back to today', profile: 'Choose language' },
   },
-];
+  Hindi: {
+    home: {
+      eyebrow: 'सुप्रभात',
+      greeting: 'नमस्ते, किसान',
+      location: 'नासिक, महाराष्ट्र',
+      today: 'आज',
+      condition: 'गर्म मौसम और हल्की हवा',
+      sunrise: 'सूर्योदय',
+      rainChance: 'बारिश की संभावना',
+      wind: 'हवा',
+      dayAtGlance: 'आज का मौसम एक नज़र में',
+      seeWeek: 'पूरा सप्ताह',
+      fieldTip: 'खेत की सलाह',
+      fieldTipText: 'आज दवा छिड़कने और खेत में काम करने के लिए अच्छा दिन है।',
+      askWeather: 'WeatherGPT से पूछें',
+      openMap: 'खेत का नक्शा',
+      askFarmers: 'किसानों से पूछें',
+      thisWeek: 'इस सप्ताह आपके खेत पर',
+      cottonField: 'कपास का खेत',
+      waterIn: '2 दिन बाद पानी दें',
+      healthy: 'स्वस्थ',
+    },
+    chat: {
+      title: 'मौसम सहायक',
+      welcome: 'नमस्ते! मौसम के हिसाब से योजना बनाने में मैं आपकी मदद करूँगा। बारिश, पानी, दवा या फसल के बारे में पूछें।',
+      ready: 'मदद के लिए तैयार',
+      today: 'आज, सुबह 9:41',
+      tryAsking: 'ऐसा पूछें',
+      quickQuestions: [
+        { label: 'क्या आज दवा छिड़कें?', icon: 'droplet' as IconName },
+        { label: 'इस सप्ताह बारिश होगी?', icon: 'cloud-rain' as IconName },
+        { label: 'पानी कब दें?', icon: 'sun' as IconName },
+      ],
+      placeholder: 'अपने खेत के बारे में पूछें',
+      listening: 'सुन रहा हूँ…',
+      askByVoice: 'आवाज़ से पूछें',
+      stopListening: 'सुनना बंद करें',
+      sendQuestion: 'सवाल भेजें',
+      thinking: 'आपके खेत के बारे में सोच रहा हूँ…',
+      footnote: 'मौसम की सलाह मदद के लिए है, स्थानीय विशेषज्ञ की जगह नहीं।',
+      sprayAnswer: 'हाँ, आज दवा छिड़कने के लिए अच्छा दिन है। हवा हल्की है और बारिश की संभावना केवल 18% है। दोपहर 4 बजे से पहले काम पूरा करें।',
+      rainAnswer: 'बुधवार को बारिश की संभावना सबसे अधिक, लगभग 60% है। आज और कल खेत का काम कर सकते हैं, फिर बुधवार सुबह दोबारा देखें।',
+      waterAnswer: 'आपका कपास का खेत दो दिन और रुक सकता है। सुबह जल्दी जड़ों के पास पानी दें, इससे धूप में नमी कम नहीं होगी।',
+      generalAnswer: 'आज नासिक में मौसम गर्म, सूखा और हल्की हवा वाला है। खेत में काम करने के लिए अच्छा दिन है। आप किस फसल के बारे में पूछना चाहते हैं?',
+    },
+    map: {
+      title: 'खेत का नक्शा',
+      subtitle: 'मौसम और खेत की सलाह के लिए जगह पर टैप करें।',
+      yourFarm: 'आपका खेत',
+      dindori: 'दिंडोरी',
+      sinnar: 'सिन्नर',
+      lightRain: 'हल्की बारिश',
+      clear: 'साफ मौसम',
+      rain: 'बारिश',
+      wind: 'हवा',
+      fields: 'खेत',
+      rainDetail: '18% बारिश की संभावना · खेत के लिए अच्छा दिन',
+      windDetail: '12 किमी/घंटा · हल्की हवा',
+      fieldsDetail: 'कपास और टमाटर के खेत',
+      updated: '6 मिनट पहले अपडेट · स्थानीय पूर्वानुमान के आधार पर',
+    },
+    community: {
+      title: 'किसान संपर्क',
+      lead: 'खेत से सीखें',
+      sub: 'स्थानीय सवाल और भरोसेमंद किसान सलाह।',
+      share: 'किसानों के साथ साझा करें',
+      shareHint: 'अपने खेत का सवाल पूछें या सलाह साझा करें।',
+      placeholder: 'आप क्या साझा करना चाहते हैं?',
+      post: 'समुदाय में पोस्ट करें',
+      addMoreTitle: 'थोड़ा और लिखें',
+      addMoreMessage: 'अपने किसान साथियों के लिए सवाल या सलाह लिखें।',
+      banner: 'दयालु रहें, उपयोगी बातें साझा करें और पास के किसान की मदद करें।',
+      conversations: 'आस-पास की बातचीत',
+      nearby: 'नासिक',
+      reply: 'जवाब दें',
+      justNow: 'अभी',
+      you: 'आप',
+      myField: 'मेरा खेत',
+      emptyTitle: 'पहली बातचीत शुरू करें',
+      emptyText: 'अपने खेत का सवाल या सलाह साझा करें।',
+    },
+    nav: { today: 'आज', ask: 'पूछें', map: 'नक्शा', farmers: 'किसान' },
+    language: {
+      title: 'भाषा चुनें',
+      hint: 'WeatherGPT पूरे ऐप में इसी भाषा का उपयोग करेगा।',
+      english: 'English',
+      hindi: 'हिंदी',
+      marathi: 'मराठी',
+    },
+    common: { back: 'आज पर वापस', profile: 'भाषा चुनें' },
+  },
+  Marathi: {
+    home: {
+      eyebrow: 'शुभ सकाळ',
+      greeting: 'नमस्कार, शेतकरी',
+      location: 'नाशिक, महाराष्ट्र',
+      today: 'आज',
+      condition: 'उबदार हवामान आणि हलका वारा',
+      sunrise: 'सूर्योदय',
+      rainChance: 'पावसाची शक्यता',
+      wind: 'वारा',
+      dayAtGlance: 'आजचा हवामान अंदाज',
+      seeWeek: 'आठवड्याचा अंदाज',
+      fieldTip: 'शेतातील सल्ला',
+      fieldTipText: 'आज फवारणी आणि शेतातील कामासाठी चांगला दिवस आहे.',
+      askWeather: 'WeatherGPT ला विचारा',
+      openMap: 'शेताचा नकाशा',
+      askFarmers: 'शेतकऱ्यांना विचारा',
+      thisWeek: 'या आठवड्यात तुमच्या शेतावर',
+      cottonField: 'कापसाचे शेत',
+      waterIn: '2 दिवसांनी पाणी द्या',
+      healthy: 'निरोगी',
+    },
+    chat: {
+      title: 'हवामान मार्गदर्शक',
+      welcome: 'नमस्कार! हवामानानुसार नियोजन करण्यास मी मदत करतो. पाऊस, पाणी, फवारणी किंवा पिकाबद्दल विचारा.',
+      ready: 'मदतीसाठी तयार',
+      today: 'आज, सकाळी 9:41',
+      tryAsking: 'असे विचारा',
+      quickQuestions: [
+        { label: 'आज फवारणी करू का?', icon: 'droplet' as IconName },
+        { label: 'या आठवड्यात पाऊस येईल?', icon: 'cloud-rain' as IconName },
+        { label: 'पाणी कधी द्यावे?', icon: 'sun' as IconName },
+      ],
+      placeholder: 'तुमच्या शेताबद्दल विचारा',
+      listening: 'ऐकत आहे…',
+      askByVoice: 'आवाजाने विचारा',
+      stopListening: 'ऐकणे थांबवा',
+      sendQuestion: 'प्रश्न पाठवा',
+      thinking: 'तुमच्या शेताचा विचार करत आहे…',
+      footnote: 'हवामान सल्ला मदतीसाठी आहे, स्थानिक तज्ज्ञांचा पर्याय नाही.',
+      sprayAnswer: 'होय, आज फवारणीसाठी चांगला दिवस आहे. वारा हलका आहे आणि पावसाची शक्यता फक्त 18% आहे. दुपारी 4 पूर्वी काम पूर्ण करा.',
+      rainAnswer: 'बुधवारी पावसाची शक्यता सुमारे 60% आहे. आज आणि उद्या शेतातील काम करा, नंतर बुधवारी सकाळी पुन्हा अंदाज पाहा.',
+      waterAnswer: 'तुमच्या कापसाच्या शेताला आणखी दोन दिवस पाणी देण्याची गरज नाही. सकाळी लवकर मुळांजवळ पाणी द्या.',
+      generalAnswer: 'आज नाशिकमध्ये हवामान उबदार, कोरडे आणि हलक्या वाऱ्याचे आहे. शेतातील कामासाठी चांगला दिवस आहे. कोणत्या पिकाबद्दल सल्ला हवा?',
+    },
+    map: {
+      title: 'शेताचा नकाशा',
+      subtitle: 'हवामान आणि शेतातील सल्ल्यासाठी ठिकाणावर टॅप करा.',
+      yourFarm: 'तुमचे शेत',
+      dindori: 'दिंडोरी',
+      sinnar: 'सिन्नर',
+      lightRain: 'हलका पाऊस',
+      clear: 'निरभ्र',
+      rain: 'पाऊस',
+      wind: 'वारा',
+      fields: 'शेते',
+      rainDetail: '18% पावसाची शक्यता · शेतासाठी चांगला दिवस',
+      windDetail: '12 किमी/ता · हलका वारा',
+      fieldsDetail: 'कापूस आणि टोमॅटोची शेते',
+      updated: '6 मिनिटांपूर्वी अपडेट · स्थानिक अंदाजावर आधारित',
+    },
+    community: {
+      title: 'शेतकरी संवाद',
+      lead: 'शेतातून शिका',
+      sub: 'स्थानिक प्रश्न आणि विश्वासू शेतकरी सल्ले.',
+      share: 'शेतकऱ्यांसोबत शेअर करा',
+      shareHint: 'तुमच्या शेतातील प्रश्न विचारा किंवा सल्ला शेअर करा.',
+      placeholder: 'तुम्हाला काय शेअर करायचे आहे?',
+      post: 'समुदायात पोस्ट करा',
+      addMoreTitle: 'थोडे अधिक लिहा',
+      addMoreMessage: 'तुमच्या शेतकरी मित्रांसाठी प्रश्न किंवा सल्ला लिहा.',
+      banner: 'चांगले बोला, उपयोगी गोष्टी शेअर करा आणि जवळच्या शेतकऱ्याला मदत करा.',
+      conversations: 'जवळचे संवाद',
+      nearby: 'नाशिक',
+      reply: 'उत्तर द्या',
+      justNow: 'आत्ताच',
+      you: 'तुम्ही',
+      myField: 'माझे शेत',
+      emptyTitle: 'पहिला संवाद सुरू करा',
+      emptyText: 'तुमच्या शेतातील प्रश्न किंवा सल्ला शेअर करा.',
+    },
+    nav: { today: 'आज', ask: 'विचारा', map: 'नकाशा', farmers: 'शेतकरी' },
+    language: {
+      title: 'भाषा निवडा',
+      hint: 'WeatherGPT संपूर्ण अॅपमध्ये ही भाषा वापरेल.',
+      english: 'English',
+      hindi: 'हिंदी',
+      marathi: 'मराठी',
+    },
+    common: { back: 'आजवर परत', profile: 'भाषा निवडा' },
+  },
+} satisfies Record<Language, object>;
 
-const quickQuestions = [
-  { label: 'Can I spray today?', icon: 'droplet' as IconName },
-  { label: 'Will it rain this week?', icon: 'cloud-rain' as IconName },
-  { label: 'When should I water?', icon: 'sun' as IconName },
+type Copy = (typeof translations)[Language];
+
+const starterMessages = (copy: Copy): ChatMessage[] => [
+  { id: 'welcome', role: 'assistant', message: copy.chat.welcome },
 ];
 
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>('home');
+  const [language, setLanguage] = useState<Language>('English');
   const [posts, setPosts] = useState<CommunityPost[]>(initialPosts);
-  const [chat, setChat] = useState<ChatMessage[]>(starterMessages);
+  const [chat, setChat] = useState<ChatMessage[]>(starterMessages(translations.English));
   const [question, setQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [showPostComposer, setShowPostComposer] = useState(false);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [newPost, setNewPost] = useState('');
   const [selectedMapPoint, setSelectedMapPoint] = useState('Your farm');
   const [mapLayer, setMapLayer] = useState<'rain' | 'wind' | 'fields'>('rain');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const copy = translations[language];
 
   useEffect(() => {
     AsyncStorage.getItem('weathergpt-community-posts')
@@ -109,11 +380,11 @@ export default function HomeScreen() {
   }, [isLoadingPosts, posts]);
 
   const activeTitle = useMemo(() => {
-    if (screen === 'chat') return 'Weather guide';
-    if (screen === 'map') return 'Field map';
-    if (screen === 'community') return 'Farmer interaction';
+    if (screen === 'chat') return copy.chat.title;
+    if (screen === 'map') return copy.map.title;
+    if (screen === 'community') return copy.community.title;
     return '';
-  }, [screen]);
+  }, [copy, screen]);
 
   const selectScreen = (next: Screen) => {
     Haptics.selectionAsync().catch(() => undefined);
@@ -135,7 +406,7 @@ export default function HomeScreen() {
         {
           id: `${Date.now()}-assistant`,
           role: 'assistant',
-          message: answerFor(trimmed),
+          message: answerFor(trimmed, copy),
         },
       ]);
       setIsSending(false);
@@ -146,8 +417,19 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
     setIsListening((current) => !current);
     if (!isListening) {
-      setQuestion('Tell me about the weather for my field');
+      setQuestion(copy.chat.placeholder);
     }
+  };
+
+  const changeLanguage = (next: Language) => {
+    setLanguage(next);
+    setShowLanguagePicker(false);
+    setIsListening(false);
+    setQuestion('');
+    setChat((current) =>
+      current.length === 1 ? starterMessages(translations[next]) : current,
+    );
+    Haptics.selectionAsync().catch(() => undefined);
   };
 
   const toggleLike = (id: string) => {
@@ -168,16 +450,16 @@ export default function HomeScreen() {
   const publishPost = () => {
     const trimmed = newPost.trim();
     if (!trimmed) {
-      Alert.alert('Add a little more', 'Write a question or tip for your farmer friends.');
+      Alert.alert(copy.community.addMoreTitle, copy.community.addMoreMessage);
       return;
     }
     const post: CommunityPost = {
       id: `${Date.now()}`,
-      name: 'You',
+      name: copy.community.you,
       initials: 'YO',
-      time: 'Just now',
+      time: copy.community.justNow,
       message: trimmed,
-      crop: 'My field',
+      crop: copy.community.myField,
       likes: 0,
     };
     setPosts((current) => [post, ...current]);
@@ -201,13 +483,16 @@ export default function HomeScreen() {
         {screen === 'home' ? (
           <HomeView
             colors={colors}
+            copy={copy}
             onChat={() => selectScreen('chat')}
             onMap={() => selectScreen('map')}
             onCommunity={() => selectScreen('community')}
+            onLanguage={() => setShowLanguagePicker(true)}
           />
         ) : screen === 'chat' ? (
           <ChatView
             colors={colors}
+            copy={copy}
             messages={chat}
             question={question}
             isSending={isSending}
@@ -220,6 +505,7 @@ export default function HomeScreen() {
         ) : screen === 'map' ? (
           <MapView
             colors={colors}
+            copy={copy}
             selectedPoint={selectedMapPoint}
             layer={mapLayer}
             onSelectPoint={setSelectedMapPoint}
@@ -228,6 +514,7 @@ export default function HomeScreen() {
         ) : (
           <CommunityView
             colors={colors}
+            copy={copy}
             posts={posts}
             isLoading={isLoadingPosts}
             onLike={toggleLike}
@@ -240,7 +527,7 @@ export default function HomeScreen() {
         <View style={[styles.pageTitle, { top: Math.max(insets.top, Platform.OS === 'web' ? 67 : 16) }]}>
           <Pressable
             onPress={() => selectScreen('home')}
-            accessibilityLabel="Back to today"
+            accessibilityLabel={copy.common.back}
             hitSlop={12}
             style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.65 : 1 }]}
           >
@@ -250,7 +537,7 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      <BottomNav colors={colors} active={screen} onSelect={selectScreen} insets={insets} />
+      <BottomNav colors={colors} copy={copy} active={screen} onSelect={selectScreen} insets={insets} />
 
       <Modal
         visible={showPostComposer}
@@ -265,16 +552,16 @@ export default function HomeScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowPostComposer(false)} />
           <View style={[styles.composer, { backgroundColor: colors.card }]}>
             <View style={styles.composerHandle} />
-            <Text style={[styles.composerTitle, { color: colors.foreground }]}>Share with farmers</Text>
+            <Text style={[styles.composerTitle, { color: colors.foreground }]}>{copy.community.share}</Text>
             <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>
-              Ask a question or share a tip from your field.
+              {copy.community.shareHint}
             </Text>
             <TextInput
               autoFocus
               multiline
               value={newPost}
               onChangeText={setNewPost}
-              placeholder="What would you like to share?"
+              placeholder={copy.community.placeholder}
               placeholderTextColor={colors.mutedForeground}
               style={[styles.postInput, { backgroundColor: colors.muted, color: colors.foreground }]}
               textAlignVertical="top"
@@ -287,10 +574,51 @@ export default function HomeScreen() {
               ]}
             >
               <Feather name="send" size={17} color={colors.primaryForeground} />
-              <Text style={[styles.publishText, { color: colors.primaryForeground }]}>Post to community</Text>
+              <Text style={[styles.publishText, { color: colors.primaryForeground }]}>{copy.community.post}</Text>
             </Pressable>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={showLanguagePicker}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowLanguagePicker(false)}
+      >
+        <Pressable
+          style={styles.languageOverlay}
+          onPress={() => setShowLanguagePicker(false)}
+        >
+          <Pressable
+            style={[styles.languageSheet, { backgroundColor: colors.card }]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.composerHandle} />
+            <Text style={[styles.composerTitle, { color: colors.foreground }]}>{copy.language.title}</Text>
+            <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>{copy.language.hint}</Text>
+            {([
+              ['English', copy.language.english],
+              ['Hindi', copy.language.hindi],
+              ['Marathi', copy.language.marathi],
+            ] as const).map(([value, label]) => (
+              <Pressable
+                key={value}
+                onPress={() => changeLanguage(value)}
+                style={({ pressed }) => [
+                  styles.languageOption,
+                  {
+                    backgroundColor: language === value ? colors.secondary : colors.muted,
+                    opacity: pressed ? 0.72 : 1,
+                  },
+                ]}
+              >
+                <Text style={[styles.languageOptionText, { color: colors.foreground }]}>{label}</Text>
+                {language === value ? <Feather name="check" size={19} color={colors.primary} /> : null}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -298,24 +626,29 @@ export default function HomeScreen() {
 
 function HomeView({
   colors,
+  copy,
   onChat,
   onMap,
   onCommunity,
+  onLanguage,
 }: {
   colors: ReturnType<typeof useColors>;
+  copy: Copy;
   onChat: () => void;
   onMap: () => void;
   onCommunity: () => void;
+  onLanguage: () => void;
 }) {
   return (
     <>
       <View style={styles.headerRow}>
         <View>
-          <Text style={[styles.eyebrow, { color: colors.primary }]}>GOOD MORNING</Text>
-          <Text style={[styles.greeting, { color: colors.foreground }]}>Namaste, farmer</Text>
+          <Text style={[styles.eyebrow, { color: colors.primary }]}>{copy.home.eyebrow}</Text>
+          <Text style={[styles.greeting, { color: colors.foreground }]}>{copy.home.greeting}</Text>
         </View>
         <Pressable
-          accessibilityLabel="Open profile"
+          accessibilityLabel={copy.common.profile}
+          onPress={onLanguage}
           style={({ pressed }) => [
             styles.avatar,
             { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder, opacity: pressed ? 0.75 : 1 },
@@ -327,7 +660,7 @@ function HomeView({
 
       <View style={styles.locationRow}>
         <Feather name="map-pin" size={14} color={colors.coral} />
-        <Text style={[styles.locationText, { color: colors.mutedForeground }]}>Nashik, Maharashtra</Text>
+        <Text style={[styles.locationText, { color: colors.mutedForeground }]}>{copy.home.location}</Text>
         <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
       </View>
 
@@ -339,26 +672,26 @@ function HomeView({
       >
         <View style={styles.heroTopLine}>
           <View style={styles.todayPill}>
-            <Text style={[styles.todayPillText, { color: colors.leafDark }]}>TODAY</Text>
+            <Text style={[styles.todayPillText, { color: colors.leafDark }]}>{copy.home.today}</Text>
           </View>
           <Feather name="sun" size={24} color={colors.sun} />
         </View>
         <Text style={styles.heroTemperature}>28°</Text>
-        <Text style={styles.heroCondition}>Warm with a gentle breeze</Text>
+        <Text style={styles.heroCondition}>{copy.home.condition}</Text>
         <View style={styles.heroDivider} />
         <View style={styles.heroStats}>
-          <WeatherStat icon="sunrise" value="6:12 AM" label="Sunrise" />
-          <WeatherStat icon="droplet" value="18%" label="Rain chance" />
-          <WeatherStat icon="wind" value="12 km/h" label="Wind" />
+          <WeatherStat icon="sunrise" value="6:12 AM" label={copy.home.sunrise} />
+          <WeatherStat icon="droplet" value="18%" label={copy.home.rainChance} />
+          <WeatherStat icon="wind" value="12 km/h" label={copy.home.wind} />
         </View>
       </LinearGradient>
 
       <View style={styles.sectionHeading}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your day at a glance</Text>
-        <Text style={[styles.sectionAction, { color: colors.primary }]}>See week</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.home.dayAtGlance}</Text>
+        <Text style={[styles.sectionAction, { color: colors.primary }]}>{copy.home.seeWeek}</Text>
       </View>
       <View style={styles.weekRow}>
-        <DayWeather day="Now" temp="28°" icon="sun" active colors={colors} />
+        <DayWeather day={copy.home.today} temp="28°" icon="sun" active colors={colors} />
         <DayWeather day="Tue" temp="29°" icon="cloud" colors={colors} />
         <DayWeather day="Wed" temp="26°" icon="cloud-rain" rain colors={colors} />
         <DayWeather day="Thu" temp="27°" icon="cloud" colors={colors} />
@@ -376,22 +709,22 @@ function HomeView({
           <Feather name="check-circle" size={20} color={colors.accentForeground} />
         </View>
         <View style={styles.adviceCopy}>
-          <Text style={[styles.adviceKicker, { color: colors.accentForeground }]}>FIELD TIP</Text>
+          <Text style={[styles.adviceKicker, { color: colors.accentForeground }]}>{copy.home.fieldTip}</Text>
           <Text style={[styles.adviceText, { color: colors.foreground }]}>
-            It’s a good day to spray and work in the field.
+            {copy.home.fieldTipText}
           </Text>
         </View>
         <Feather name="arrow-up-right" size={18} color={colors.accentForeground} />
       </Pressable>
 
       <View style={styles.quickActions}>
-        <QuickAction icon="message-circle" label="Ask WeatherGPT" onPress={onChat} colors={colors} />
-        <QuickAction icon="map" label="Open field map" onPress={onMap} colors={colors} />
-        <QuickAction icon="users" label="Ask farmers" onPress={onCommunity} colors={colors} />
+        <QuickAction icon="message-circle" label={copy.home.askWeather} onPress={onChat} colors={colors} />
+        <QuickAction icon="map" label={copy.home.openMap} onPress={onMap} colors={colors} />
+        <QuickAction icon="users" label={copy.home.askFarmers} onPress={onCommunity} colors={colors} />
       </View>
 
       <View style={styles.sectionHeading}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>This week on your farm</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.home.thisWeek}</Text>
         <Feather name="more-horizontal" size={20} color={colors.mutedForeground} />
       </View>
       <View style={[styles.cropCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -399,11 +732,11 @@ function HomeView({
           <Feather name="activity" size={22} color={colors.primary} />
         </View>
         <View style={styles.cropCopy}>
-          <Text style={[styles.cropTitle, { color: colors.foreground }]}>Cotton field</Text>
-          <Text style={[styles.cropDetail, { color: colors.mutedForeground }]}>Next watering in 2 days</Text>
+          <Text style={[styles.cropTitle, { color: colors.foreground }]}>{copy.home.cottonField}</Text>
+          <Text style={[styles.cropDetail, { color: colors.mutedForeground }]}>{copy.home.waterIn}</Text>
         </View>
         <View style={[styles.healthPill, { backgroundColor: colors.secondary }]}>
-          <Text style={[styles.healthText, { color: colors.primary }]}>Healthy</Text>
+          <Text style={[styles.healthText, { color: colors.primary }]}>{copy.home.healthy}</Text>
         </View>
       </View>
     </>
@@ -412,6 +745,7 @@ function HomeView({
 
 function ChatView({
   colors,
+  copy,
   messages,
   question,
   isSending,
@@ -422,6 +756,7 @@ function ChatView({
   onListen,
 }: {
   colors: ReturnType<typeof useColors>;
+  copy: Copy;
   messages: ChatMessage[];
   question: string;
   isSending: boolean;
@@ -441,11 +776,11 @@ function ChatView({
           <Text style={[styles.chatName, { color: colors.foreground }]}>WeatherGPT</Text>
           <View style={styles.onlineRow}>
             <View style={[styles.onlineDot, { backgroundColor: colors.leaf }]} />
-            <Text style={[styles.onlineText, { color: colors.mutedForeground }]}>Ready to help</Text>
+            <Text style={[styles.onlineText, { color: colors.mutedForeground }]}>{copy.chat.ready}</Text>
           </View>
         </View>
       </View>
-      <Text style={[styles.chatDate, { color: colors.mutedForeground }]}>TODAY, 9:41 AM</Text>
+      <Text style={[styles.chatDate, { color: colors.mutedForeground }]}>{copy.chat.today}</Text>
       <View style={styles.messageList}>
         {messages.map((item) => (
           <View
@@ -475,14 +810,14 @@ function ChatView({
         {isSending ? (
           <View style={[styles.typingBubble, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.typingText, { color: colors.mutedForeground }]}>Thinking about your field…</Text>
+            <Text style={[styles.typingText, { color: colors.mutedForeground }]}>{copy.chat.thinking}</Text>
           </View>
         ) : null}
       </View>
 
-      <Text style={[styles.askLabel, { color: colors.mutedForeground }]}>TRY ASKING</Text>
+      <Text style={[styles.askLabel, { color: colors.mutedForeground }]}>{copy.chat.tryAsking}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickQuestionRow}>
-        {quickQuestions.map((item) => (
+        {copy.chat.quickQuestions.map((item) => (
           <Pressable
             key={item.label}
             onPress={() => onQuickQuestion(item.label)}
@@ -501,16 +836,16 @@ function ChatView({
         <TextInput
           value={question}
           onChangeText={onQuestionChange}
-          placeholder={isListening ? 'Listening…' : 'Ask about your farm'}
+          placeholder={isListening ? copy.chat.listening : copy.chat.placeholder}
           placeholderTextColor={colors.mutedForeground}
           style={[styles.chatInput, { color: colors.foreground }]}
           returnKeyType="send"
           onSubmitEditing={onSend}
-          accessibilityLabel="Ask about your farm"
+          accessibilityLabel={copy.chat.placeholder}
         />
         <Pressable
           onPress={onListen}
-          accessibilityLabel={isListening ? 'Stop listening' : 'Ask by voice'}
+          accessibilityLabel={isListening ? copy.chat.stopListening : copy.chat.askByVoice}
           style={({ pressed }) => [
             styles.micButton,
             { backgroundColor: isListening ? colors.coral : colors.secondary, opacity: pressed ? 0.75 : 1 },
@@ -520,7 +855,7 @@ function ChatView({
         </Pressable>
         <Pressable
           onPress={onSend}
-          accessibilityLabel="Send question"
+          accessibilityLabel={copy.chat.sendQuestion}
           style={({ pressed }) => [
             styles.sendButton,
             { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
@@ -530,7 +865,7 @@ function ChatView({
         </Pressable>
       </View>
       <Text style={[styles.chatFootnote, { color: colors.mutedForeground }]}>
-        Weather guidance is a helper, not a replacement for local expert advice.
+        {copy.chat.footnote}
       </Text>
     </>
   );
@@ -538,12 +873,14 @@ function ChatView({
 
 function MapView({
   colors,
+  copy,
   selectedPoint,
   layer,
   onSelectPoint,
   onSelectLayer,
 }: {
   colors: ReturnType<typeof useColors>;
+  copy: Copy;
   selectedPoint: string;
   layer: 'rain' | 'wind' | 'fields';
   onSelectPoint: (value: string) => void;
@@ -552,7 +889,7 @@ function MapView({
   return (
     <>
       <Text style={[styles.mapSubtitle, { color: colors.mutedForeground }]}>
-        Tap a place to see its weather and field advice.
+        {copy.map.subtitle}
       </Text>
       <View style={[styles.mapCard, { backgroundColor: colors.mapLand, borderColor: colors.border }]}>
         <View style={[styles.mapWaterShape, { backgroundColor: colors.mapWater }]} />
@@ -561,12 +898,12 @@ function MapView({
         <View style={[styles.mapFieldShape, styles.fieldOne, { backgroundColor: colors.mapField }]} />
         <View style={[styles.mapFieldShape, styles.fieldTwo, { backgroundColor: colors.mapField }]} />
         <View style={[styles.mapFieldShape, styles.fieldThree, { backgroundColor: colors.mapField }]} />
-        <MapPoint label="Your farm" x="46%" y="46%" active={selectedPoint === 'Your farm'} colors={colors} onPress={onSelectPoint} />
-        <MapPoint label="Dindori" x="23%" y="27%" active={selectedPoint === 'Dindori'} colors={colors} onPress={onSelectPoint} />
-        <MapPoint label="Sinnar" x="70%" y="69%" active={selectedPoint === 'Sinnar'} colors={colors} onPress={onSelectPoint} />
+        <MapPoint id="Your farm" label={copy.map.yourFarm} x="46%" y="46%" active={selectedPoint === 'Your farm'} colors={colors} onPress={onSelectPoint} />
+        <MapPoint id="Dindori" label={copy.map.dindori} x="23%" y="27%" active={selectedPoint === 'Dindori'} colors={colors} onPress={onSelectPoint} />
+        <MapPoint id="Sinnar" label={copy.map.sinnar} x="70%" y="69%" active={selectedPoint === 'Sinnar'} colors={colors} onPress={onSelectPoint} />
         <View style={[styles.mapLegend, { backgroundColor: colors.card }]}>
-          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.rain }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>Light rain</Text></View>
-          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.sun }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>Clear</Text></View>
+          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.rain }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>{copy.map.lightRain}</Text></View>
+          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.sun }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>{copy.map.clear}</Text></View>
         </View>
         <View style={[styles.zoomControls, { backgroundColor: colors.card }]}>
           <Feather name="plus" size={18} color={colors.foreground} />
@@ -589,7 +926,9 @@ function MapView({
             ]}
           >
             <Feather name={item === 'rain' ? 'cloud-rain' : item === 'wind' ? 'wind' : 'grid'} size={15} color={layer === item ? colors.primaryForeground : colors.primary} />
-            <Text style={[styles.layerText, { color: layer === item ? colors.primaryForeground : colors.foreground }]}>{item[0].toUpperCase() + item.slice(1)}</Text>
+            <Text style={[styles.layerText, { color: layer === item ? colors.primaryForeground : colors.foreground }]}>
+              {item === 'rain' ? copy.map.rain : item === 'wind' ? copy.map.wind : copy.map.fields}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -598,26 +937,34 @@ function MapView({
           <Feather name={layer === 'rain' ? 'cloud-rain' : layer === 'wind' ? 'wind' : 'sun'} size={22} color={colors.primary} />
         </View>
         <View style={styles.mapDetailCopy}>
-          <Text style={[styles.mapDetailPlace, { color: colors.foreground }]}>{selectedPoint}</Text>
+          <Text style={[styles.mapDetailPlace, { color: colors.foreground }]}>
+            {selectedPoint === 'Your farm'
+              ? copy.map.yourFarm
+              : selectedPoint === 'Dindori'
+                ? copy.map.dindori
+                : copy.map.sinnar}
+          </Text>
           <Text style={[styles.mapDetailText, { color: colors.mutedForeground }]}>
-            {layer === 'rain' ? '18% rain chance · Good field day' : layer === 'wind' ? '12 km/h · Gentle breeze' : 'Cotton and tomato fields'}
+            {layer === 'rain' ? copy.map.rainDetail : layer === 'wind' ? copy.map.windDetail : copy.map.fieldsDetail}
           </Text>
         </View>
         <Feather name="chevron-right" size={19} color={colors.mutedForeground} />
       </View>
-      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>Updated 6 minutes ago · Based on local forecast</Text>
+      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>{copy.map.updated}</Text>
     </>
   );
 }
 
 function CommunityView({
   colors,
+  copy,
   posts,
   isLoading,
   onLike,
   onAdd,
 }: {
   colors: ReturnType<typeof useColors>;
+  copy: Copy;
   posts: CommunityPost[];
   isLoading: boolean;
   onLike: (id: string) => void;
@@ -627,12 +974,12 @@ function CommunityView({
     <>
       <View style={styles.communityHeader}>
         <View>
-          <Text style={[styles.communityLead, { color: colors.foreground }]}>Learn from the field</Text>
-          <Text style={[styles.communitySub, { color: colors.mutedForeground }]}>Local questions, trusted farmer tips.</Text>
+          <Text style={[styles.communityLead, { color: colors.foreground }]}>{copy.community.lead}</Text>
+          <Text style={[styles.communitySub, { color: colors.mutedForeground }]}>{copy.community.sub}</Text>
         </View>
         <Pressable
           onPress={onAdd}
-          accessibilityLabel="Share with farmers"
+          accessibilityLabel={copy.community.share}
           style={({ pressed }) => [
             styles.addPostButton,
             { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 },
@@ -646,14 +993,14 @@ function CommunityView({
           <Feather name="users" size={19} color={colors.primary} />
         </View>
         <Text style={[styles.bannerText, { color: colors.leafDark }]}>
-          Be kind, share what works, and help a farmer nearby.
+          {copy.community.banner}
         </Text>
       </View>
       <View style={styles.feedHeader}>
-        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Nearby conversations</Text>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.community.conversations}</Text>
         <View style={[styles.nearbyPill, { backgroundColor: colors.secondary }]}>
           <View style={[styles.onlineDot, { backgroundColor: colors.leaf }]} />
-          <Text style={[styles.nearbyText, { color: colors.primary }]}>Nashik</Text>
+          <Text style={[styles.nearbyText, { color: colors.primary }]}>{copy.community.nearby}</Text>
         </View>
       </View>
       {isLoading ? (
@@ -684,7 +1031,7 @@ function CommunityView({
               </Pressable>
               <View style={styles.postAction}>
                 <Feather name="message-circle" size={17} color={colors.mutedForeground} />
-                <Text style={[styles.postActionText, { color: colors.mutedForeground }]}>Reply</Text>
+                <Text style={[styles.postActionText, { color: colors.mutedForeground }]}>{copy.community.reply}</Text>
               </View>
               <Pressable style={({ pressed }) => [styles.postAction, { marginLeft: 'auto', opacity: pressed ? 0.55 : 1 }]}>
                 <Feather name="share-2" size={17} color={colors.mutedForeground} />
@@ -695,8 +1042,8 @@ function CommunityView({
       ) : (
         <View style={[styles.emptyState, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Feather name="message-square" size={26} color={colors.primary} />
-          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Start the first conversation</Text>
-          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>Share a question or tip from your field.</Text>
+          <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{copy.community.emptyTitle}</Text>
+          <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>{copy.community.emptyText}</Text>
         </View>
       )}
     </>
@@ -705,20 +1052,22 @@ function CommunityView({
 
 function BottomNav({
   colors,
+  copy,
   active,
   onSelect,
   insets,
 }: {
   colors: ReturnType<typeof useColors>;
+  copy: Copy;
   active: Screen;
   onSelect: (screen: Screen) => void;
   insets: { bottom: number };
 }) {
   const items: { id: Screen; label: string; icon: IconName }[] = [
-    { id: 'home', label: 'Today', icon: 'sun' },
-    { id: 'chat', label: 'Ask', icon: 'message-circle' },
-    { id: 'map', label: 'Map', icon: 'map' },
-    { id: 'community', label: 'Farmers', icon: 'users' },
+    { id: 'home', label: copy.nav.today, icon: 'sun' },
+    { id: 'chat', label: copy.nav.ask, icon: 'message-circle' },
+    { id: 'map', label: copy.nav.map, icon: 'map' },
+    { id: 'community', label: copy.nav.farmers, icon: 'users' },
   ];
   return (
     <View style={[styles.bottomNav, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 10) }]}>
@@ -798,6 +1147,7 @@ function QuickAction({
 }
 
 function MapPoint({
+  id,
   label,
   x,
   y,
@@ -805,6 +1155,7 @@ function MapPoint({
   colors,
   onPress,
 }: {
+  id: string;
   label: string;
   x: `${number}%`;
   y: `${number}%`;
@@ -814,7 +1165,7 @@ function MapPoint({
 }) {
   return (
     <Pressable
-      onPress={() => onPress(label)}
+      onPress={() => onPress(id)}
       style={({ pressed }) => [
         styles.mapPoint,
         { left: x, top: y, opacity: pressed ? 0.66 : 1 },
@@ -831,18 +1182,18 @@ function MapPoint({
   );
 }
 
-function answerFor(question: string) {
+function answerFor(question: string, copy: Copy) {
   const lower = question.toLowerCase();
-  if (lower.includes('spray')) {
-    return 'Yes, today looks suitable for spraying: light wind and only an 18% chance of rain. Finish before 4 PM and avoid the hottest part of the afternoon.';
+  if (lower.includes('spray') || question.includes('दवा') || question.includes('फवारणी')) {
+    return copy.chat.sprayAnswer;
   }
-  if (lower.includes('rain')) {
-    return 'Wednesday has the best chance of rain at about 60%. You can plan field work for today and tomorrow, then check again Wednesday morning.';
+  if (lower.includes('rain') || question.includes('बारिश') || question.includes('पाऊस')) {
+    return copy.chat.rainAnswer;
   }
-  if (lower.includes('water')) {
-    return 'Your cotton field can wait two more days. Water early in the morning, close to the roots, so less moisture is lost to the sun.';
+  if (lower.includes('water') || question.includes('पानी') || question.includes('पाणी')) {
+    return copy.chat.waterAnswer;
   }
-  return 'For Nashik today: warm, dry, and gently windy. It is a good day for field work. What crop would you like advice for?';
+  return copy.chat.generalAnswer;
 }
 
 const styles = StyleSheet.create({
@@ -980,6 +1331,10 @@ const styles = StyleSheet.create({
   navIconWrap: { width: 38, height: 28, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   navLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,49,38,0.24)' },
+  languageOverlay: { flex: 1, alignItems: 'flex-end', justifyContent: 'flex-start', paddingTop: 78, paddingHorizontal: 18, backgroundColor: 'rgba(23,49,38,0.18)' },
+  languageSheet: { width: '100%', maxWidth: 390, alignSelf: 'center', borderRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18 },
+  languageOption: { minHeight: 51, borderRadius: 14, marginTop: 9, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  languageOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   composer: { borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16 },
   composerHandle: { width: 38, height: 4, backgroundColor: '#DCE9D8', borderRadius: 2, alignSelf: 'center', marginBottom: 17 },
   composerTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 },

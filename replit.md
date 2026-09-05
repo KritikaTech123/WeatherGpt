@@ -41,6 +41,7 @@ WeatherGPT for Farmers is a phone-first weather companion that turns forecast in
 - WeatherGPT chat with quick questions, question input, and a voice-friendly microphone interaction.
 - Interactive field map with tap-to-select locations and rain, wind, and field layers.
 - Farmer interaction feed with local posts, likes, and a share composer.
+- Multilingual UI switcher for English, Hindi, and Marathi across navigation, weather advice, chat prompts, map labels, and community actions.
 
 ## User preferences
 
