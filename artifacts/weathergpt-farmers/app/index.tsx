@@ -224,6 +224,17 @@ const translations = {
     map: {
       title: 'Field map',
       subtitle: 'Tap a place to see its weather and field advice.',
+      simulatorTitle: 'INDIA WEATHER MAP SIMULATOR',
+      simulatorText: 'Demo forecasts for learning and planning',
+      stateStep: '1. State',
+      districtStep: '2. District',
+      cityStep: '3. City',
+      districtSuffix: 'district',
+      selectOnMap: 'select on India map',
+      rainChance: 'rain chance',
+      windFrom: 'from',
+      humidity: 'Humidity',
+      simulatorOnly: 'Simulator data • not a live forecast',
       yourFarm: 'Your farm',
       dindori: 'Dindori',
       sinnar: 'Sinnar',
@@ -339,6 +350,17 @@ const translations = {
     map: {
       title: 'खेत का नक्शा',
       subtitle: 'मौसम और खेत की सलाह के लिए जगह पर टैप करें।',
+      simulatorTitle: 'भारत मौसम नक्शा सिम्युलेटर',
+      simulatorText: 'सीखने और योजना बनाने के लिए नमूना पूर्वानुमान',
+      stateStep: '1. राज्य',
+      districtStep: '2. जिला',
+      cityStep: '3. शहर',
+      districtSuffix: 'जिला',
+      selectOnMap: 'भारत के नक्शे पर चुनें',
+      rainChance: 'बारिश की संभावना',
+      windFrom: 'दिशा',
+      humidity: 'नमी',
+      simulatorOnly: 'सिम्युलेटर डेटा • लाइव पूर्वानुमान नहीं',
       yourFarm: 'आपका खेत',
       dindori: 'दिंडोरी',
       sinnar: 'सिन्नर',
@@ -454,6 +476,17 @@ const translations = {
     map: {
       title: 'शेताचा नकाशा',
       subtitle: 'हवामान आणि शेतातील सल्ल्यासाठी ठिकाणावर टॅप करा.',
+      simulatorTitle: 'भारत हवामान नकाशा सिम्युलेटर',
+      simulatorText: 'शिकण्यासाठी आणि नियोजनासाठी नमुना अंदाज',
+      stateStep: '1. राज्य',
+      districtStep: '2. जिल्हा',
+      cityStep: '3. शहर',
+      districtSuffix: 'जिल्हा',
+      selectOnMap: 'भारताच्या नकाशावर निवडा',
+      rainChance: 'पावसाची शक्यता',
+      windFrom: 'दिशा',
+      humidity: 'आर्द्रता',
+      simulatorOnly: 'सिम्युलेटर डेटा • थेट हवामान अंदाज नाही',
       yourFarm: 'तुमचे शेत',
       dindori: 'दिंडोरी',
       sinnar: 'सिन्नर',
@@ -821,6 +854,7 @@ export default function HomeScreen() {
           <MapView
             colors={colors}
             copy={copy}
+            language={language}
             selectedPoint={selectedMapPoint}
             layer={mapLayer}
             onSelectPoint={setSelectedMapPoint}
@@ -1381,9 +1415,54 @@ const stateHotspots: Record<string, { x: DimensionValue; y: DimensionValue; shor
   Karnataka: { x: '29%', y: '78%', shortLabel: 'KA' },
 };
 
+const placeTranslations: Partial<Record<CoreLanguage, Record<string, string>>> = {
+  Hindi: {
+    Maharashtra: 'महाराष्ट्र', Punjab: 'पंजाब', Karnataka: 'कर्नाटक', 'Uttar Pradesh': 'उत्तर प्रदेश',
+    Nashik: 'नासिक', Dindori: 'दिंडोरी', Pune: 'पुणे', Baramati: 'बारामती',
+    Ludhiana: 'लुधियाना', Khanna: 'खन्ना', Amritsar: 'अमृतसर', Ajnala: 'अजनाला',
+    Bengaluru: 'बेंगलुरु', Devanahalli: 'देवनहल्ली', Mysuru: 'मैसूर', Nanjangud: 'नंजनगुड',
+    Lucknow: 'लखनऊ', Malihabad: 'मलिहाबाद', Varanasi: 'वाराणसी', Pindra: 'पिंडरा',
+  },
+  Marathi: {
+    Maharashtra: 'महाराष्ट्र', Punjab: 'पंजाब', Karnataka: 'कर्नाटक', 'Uttar Pradesh': 'उत्तर प्रदेश',
+    Nashik: 'नाशिक', Dindori: 'दिंडोरी', Pune: 'पुणे', Baramati: 'बारामती',
+    Ludhiana: 'लुधियाना', Khanna: 'खन्ना', Amritsar: 'अमृतसर', Ajnala: 'अजनाला',
+    Bengaluru: 'बेंगळुरू', Devanahalli: 'देवनहळ्ळी', Mysuru: 'म्हैसूर', Nanjangud: 'नंजनगुड',
+    Lucknow: 'लखनऊ', Malihabad: 'मलिहाबाद', Varanasi: 'वाराणसी', Pindra: 'पिंडरा',
+  },
+};
+
+const adviceTranslations: Partial<Record<CoreLanguage, Record<string, string>>> = {
+  Hindi: {
+    Nashik: 'आज दोपहर बाद छिड़काव करें, जब हवा हल्की हो।',
+    Dindori: 'शाम की सिंचाई से पहले मिट्टी की नमी जाँचें।',
+    Pune: 'हल्की बारिश संभव है; कटी हुई फसल ढककर रखें।',
+    Baramati: 'गर्मी में पौधों की जड़ों के पास पानी दें।',
+    Ludhiana: 'आज शाम गेहूँ के खेत की नमी जाँचें।',
+    Khanna: 'शांत सुबह खेत की जाँच के लिए अच्छी है।',
+    Amritsar: 'बादल घने हों तो खाद डालना टालें।',
+    Ajnala: 'कटी हुई फसल को ढककर रखें।',
+    Bengaluru: 'बारिश संभव है; पत्तियों पर छिड़काव न करें।',
+    Devanahalli: 'तेज़ हवा से पहले छाया-जाल सुरक्षित करें।',
+    Mysuru: 'सब्जियों की क्यारियों के आसपास जल निकासी जाँचें।',
+    Nanjangud: 'सुबह का समय खेत के काम के लिए अच्छा है।',
+    Lucknow: 'जहाँ ऊपरी मिट्टी सूखी हो, केवल वहीं सिंचाई करें।',
+    Malihabad: 'आम के पत्तों में नमी की कमी के संकेत देखें।',
+    Varanasi: 'भारी काम दोपहर से पहले पूरा करें।',
+    Pindra: 'उपज के लिए बारिश का कवर तैयार रखें।',
+  },
+};
+
+const localizePlace = (place: string, language: Language) =>
+  (language === 'Hindi' || language === 'Marathi' ? placeTranslations[language]?.[place] : undefined) ?? place;
+
+const localizeAdvice = (city: string, advice: string, language: Language) =>
+  (language === 'Hindi' || language === 'Marathi' ? adviceTranslations[language]?.[city] : undefined) ?? advice;
+
 function MapView({
   colors,
   copy,
+  language,
   selectedPoint,
   layer,
   onSelectPoint,
@@ -1391,6 +1470,7 @@ function MapView({
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
+  language: Language;
   selectedPoint: string;
   layer: 'rain' | 'wind' | 'fields';
   onSelectPoint: (value: string) => void;
@@ -1420,19 +1500,24 @@ function MapView({
     Haptics.selectionAsync().catch(() => undefined);
   };
 
+  const chooseCity = (city: string) => {
+    onSelectPoint(city);
+    Haptics.selectionAsync().catch(() => undefined);
+  };
+
   return (
     <>
       <Text style={[styles.mapSubtitle, { color: colors.mutedForeground }]}>
-        Tap a state, district, and city to explore simulated local weather.
+        {copy.map.subtitle}
       </Text>
       <View style={[styles.simulatorNotice, { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder }]}>
         <Feather name="compass" size={16} color={colors.accent} />
         <View style={styles.simulatorNoticeCopy}>
-          <Text style={[styles.simulatorNoticeTitle, { color: colors.foreground }]}>INDIA WEATHER MAP SIMULATOR</Text>
-          <Text style={[styles.simulatorNoticeText, { color: colors.mutedForeground }]}>Demo forecasts for learning and planning</Text>
+          <Text style={[styles.simulatorNoticeTitle, { color: colors.foreground }]}>{copy.map.simulatorTitle}</Text>
+          <Text style={[styles.simulatorNoticeText, { color: colors.mutedForeground }]}>{copy.map.simulatorText}</Text>
         </View>
       </View>
-      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>1. State</Text>
+      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>{copy.map.stateStep}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mapPickerRow}>
         {states.map((state) => (
           <Pressable
@@ -1447,11 +1532,11 @@ function MapView({
               },
             ]}
           >
-            <Text style={[styles.mapChoiceText, { color: selectedState === state ? colors.primaryForeground : colors.foreground }]}>{state}</Text>
+            <Text style={[styles.mapChoiceText, { color: selectedState === state ? colors.primaryForeground : colors.foreground }]}>{localizePlace(state, language)}</Text>
           </Pressable>
         ))}
       </ScrollView>
-      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>2. District</Text>
+      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>{copy.map.districtStep}</Text>
       <View style={styles.districtRow}>
         {districts.map((district) => (
           <Pressable
@@ -1466,7 +1551,26 @@ function MapView({
               },
             ]}
           >
-            <Text style={[styles.districtChoiceText, { color: colors.foreground }]}>{district}</Text>
+            <Text style={[styles.districtChoiceText, { color: colors.foreground }]}>{localizePlace(district, language)}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={[styles.mapPickerLabel, styles.cityPickerLabel, { color: colors.foreground }]}>{copy.map.cityStep}</Text>
+      <View style={styles.districtRow}>
+        {cities.map((city) => (
+          <Pressable
+            key={city}
+            onPress={() => chooseCity(city)}
+            style={({ pressed }) => [
+              styles.districtChoice,
+              {
+                backgroundColor: selectedCity === city ? colors.secondary : colors.card,
+                borderColor: selectedCity === city ? colors.primary : colors.border,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.districtChoiceText, { color: colors.foreground }]}>{localizePlace(city, language)}</Text>
           </Pressable>
         ))}
       </View>
@@ -1493,7 +1597,7 @@ function MapView({
             <Pressable
               key={state}
               accessibilityRole="button"
-              accessibilityLabel={`Select ${state} on the India map`}
+              accessibilityLabel={`${localizePlace(state, language)} ${copy.map.selectOnMap}`}
               onPress={() => chooseState(state)}
               style={({ pressed }) => [
                 styles.stateHotspot,
@@ -1516,7 +1620,7 @@ function MapView({
           <MapPoint
             key={city}
             id={city}
-            label={city}
+            label={localizePlace(city, language)}
             x={cityCoords[city]?.x || '50%'}
             y={cityCoords[city]?.y || '50%'}
             active={selectedCity === city}
@@ -1525,8 +1629,8 @@ function MapView({
           />
         ))}
         <View style={[styles.mapLegend, { backgroundColor: colors.card }]}>
-          <Text style={[styles.legendHeading, { color: colors.foreground }]}>{selectedState}</Text>
-          <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{selectedDistrict} district</Text>
+          <Text style={[styles.legendHeading, { color: colors.foreground }]}>{localizePlace(selectedState, language)}</Text>
+          <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{localizePlace(selectedDistrict, language)} {copy.map.districtSuffix}</Text>
         </View>
       </View>
       <View style={styles.layerRow}>
@@ -1556,23 +1660,23 @@ function MapView({
         </View>
         <View style={styles.mapDetailCopy}>
           <Text style={[styles.mapDetailPlace, { color: colors.foreground }]}>
-            {selectedCity}, {selectedDistrict}
+            {localizePlace(selectedCity, language)}, {localizePlace(selectedDistrict, language)}
           </Text>
           <Text style={[styles.mapDetailText, { color: colors.mutedForeground }]}>
             {layer === 'rain'
-              ? `${weather.rain}% rain chance`
+              ? `${weather.rain}% ${copy.map.rainChance}`
               : layer === 'wind'
-                ? `${weather.wind} km/h from ${weather.windDirection}`
-                : weather.advice}
+                ? `${weather.wind} km/h • ${copy.map.windFrom} ${weather.windDirection}`
+                : localizeAdvice(selectedCity, weather.advice, language)}
           </Text>
         </View>
         <Text style={[styles.mapTemperature, { color: colors.foreground }]}>{weather.temperature}°</Text>
       </View>
       <View style={styles.weatherMetricRow}>
         {[
-          { icon: 'cloud-rain' as IconName, value: `${weather.rain}%`, label: 'Rain' },
+          { icon: 'cloud-rain' as IconName, value: `${weather.rain}%`, label: copy.map.rain },
           { icon: 'wind' as IconName, value: `${weather.wind} km/h`, label: weather.windDirection },
-          { icon: 'droplet' as IconName, value: `${weather.humidity}%`, label: 'Humidity' },
+          { icon: 'droplet' as IconName, value: `${weather.humidity}%`, label: copy.map.humidity },
         ].map((metric) => (
           <View key={metric.label} style={[styles.weatherMetric, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Feather name={metric.icon} size={16} color={colors.primary} />
@@ -1583,9 +1687,9 @@ function MapView({
       </View>
       <View style={[styles.simulatorAdvice, { backgroundColor: colors.secondary }]}>
         <Feather name="check-circle" size={18} color={colors.primary} />
-        <Text style={[styles.simulatorAdviceText, { color: colors.leafDark }]}>{weather.advice}</Text>
+        <Text style={[styles.simulatorAdviceText, { color: colors.leafDark }]}>{localizeAdvice(selectedCity, weather.advice, language)}</Text>
       </View>
-      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>Simulator data • not a live forecast</Text>
+      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>{copy.map.simulatorOnly}</Text>
     </>
   );
 }
@@ -2096,6 +2200,7 @@ const styles = StyleSheet.create({
   simulatorNoticeTitle: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.8 },
   simulatorNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
   mapPickerLabel: { marginHorizontal: 22, marginTop: 16, marginBottom: 8, fontFamily: 'Inter_700Bold', fontSize: 12 },
+  cityPickerLabel: { marginTop: 2 },
   mapPickerRow: { paddingHorizontal: 18, gap: 8 },
   mapChoice: { minHeight: 40, borderRadius: 13, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   mapChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
