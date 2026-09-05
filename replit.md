@@ -1,6 +1,6 @@
-# [Project name]
+# WeatherGPT for Farmers
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+WeatherGPT for Farmers is a phone-first weather companion that turns forecast information into plain-language crop advice and local farmer conversations.
 
 ## Run & Operate
 
@@ -22,23 +22,34 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/weathergpt-farmers/app/index.tsx` — the first complete farmer experience: today view, weather chat, field map, and farmer interaction feed.
+- `artifacts/weathergpt-farmers/constants/colors.ts` — semantic product palette used by the mobile UI.
+- `artifacts/weathergpt-farmers/assets/images/icon.png` — custom farm-weather app icon.
+- `artifacts/api-server` — shared Express API scaffold, reserved for future live meteorological data and persistence.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first build is frontend-first so farmers can try the core experience without account setup or an external service.
+- Farmer interaction posts are stored locally with AsyncStorage so creating and liking a post work immediately on a device.
+- The map uses a lightweight touch-friendly field map for the first mobile build; it is ready to be replaced by live GIS tiles when a mapping data source is connected.
+- Chat uses a local response layer for the first build, keeping the conversation fast and available offline while the live weather/LLM contract is defined.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Plain-language weather snapshot for Nashik, including temperature, rain chance, sunrise, wind, and a five-day glance.
+- Field advice card with a crop-aware action suggestion.
+- WeatherGPT chat with quick questions, question input, and a voice-friendly microphone interaction.
+- Interactive field map with tap-to-select locations and rain, wind, and field layers.
+- Farmer interaction feed with local posts, likes, and a share composer.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the UI easiest and playful for farmers, with large touch targets, simple language, and minimal typing.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Use `pnpm --filter @workspace/weathergpt-farmers run typecheck` for quick mobile checks.
+- Run the Expo artifact through its managed workflow; do not start Expo directly from the shell.
 
 ## Pointers
 
