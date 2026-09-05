@@ -69,17 +69,18 @@ It bridges the gap between **complex meteorological data** and **real-world deci
 
 ```mermaid
 flowchart TD
-    A[User (Voice/Text)] --> B[Frontend (React PWA)]
-    B --> C[FastAPI Gateway]
+    A["User (Voice/Text)"] --> B["Frontend - React PWA"]
+    B --> C["FastAPI Gateway"]
 
-    C --> D[Voice Service (Bhashini)]
-    C --> E[Weather Engine (GRIB2 Parser)]
-    C --> F[Alert Engine (MQTT WIS2.0)]
-    C --> G[RAG Engine (Qdrant/Milvus)]
+    C --> D["Voice Service - Bhashini"]
+    C --> E["Weather Engine - GRIB2 Parser"]
+    C --> F["Alert Engine - MQTT WIS2"]
+    C --> G["RAG Engine - Vector DB"]
 
-    E --> H[cfgrib + xarray]
-    F --> I[WMO Global Broker]
-    G --> J[IMD Agromet Data]
+    E --> H["cfgrib and xarray"]
+    F --> I["WMO Global Broker"]
+    G --> J["IMD Agromet Data"]
 
-    C --> K[Response Generator]
+    C --> K["Response Generator"]
     K --> B
+```
