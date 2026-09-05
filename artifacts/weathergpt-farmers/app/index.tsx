@@ -21,7 +21,9 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
-type Screen = 'home' | 'chat' | 'voice' | 'map' | 'community';
+import * as Location from 'expo-location';
+
+type Screen = 'home' | 'chat' | 'voice' | 'map' | 'community' | 'profile';
 type IconName = React.ComponentProps<typeof Feather>['name'];
 type CoreLanguage = 'English' | 'Hindi' | 'Marathi';
 type Language =
@@ -64,6 +66,58 @@ type ChatMessage = {
   id: string;
   role: 'assistant' | 'user';
   message: string;
+};
+
+type SimulatedCityWeather = {
+  temperature: number;
+  rain: number;
+  wind: number;
+  windDirection: string;
+  humidity: number;
+  advice: string;
+};
+
+const indiaWeatherSimulator: Record<string, Record<string, Record<string, SimulatedCityWeather>>> = {
+  Maharashtra: {
+    Nashik: {
+      Nashik: { temperature: 28, rain: 18, wind: 12, windDirection: 'SW', humidity: 58, advice: 'Good spraying window before late afternoon.' },
+      Dindori: { temperature: 26, rain: 34, wind: 9, windDirection: 'W', humidity: 66, advice: 'Watch clouds before spraying grapes.' },
+    },
+    Pune: {
+      Pune: { temperature: 27, rain: 24, wind: 14, windDirection: 'W', humidity: 61, advice: 'Light irrigation is enough today.' },
+      Baramati: { temperature: 30, rain: 9, wind: 16, windDirection: 'NW', humidity: 45, advice: 'Protect young plants from dry wind.' },
+    },
+  },
+  Punjab: {
+    Ludhiana: {
+      Ludhiana: { temperature: 31, rain: 12, wind: 11, windDirection: 'NW', humidity: 51, advice: 'Check wheat soil moisture this evening.' },
+      Khanna: { temperature: 30, rain: 15, wind: 10, windDirection: 'N', humidity: 55, advice: 'A calm morning suits field inspection.' },
+    },
+    Amritsar: {
+      Amritsar: { temperature: 29, rain: 20, wind: 13, windDirection: 'NE', humidity: 60, advice: 'Delay fertilizer if clouds thicken.' },
+      Ajnala: { temperature: 28, rain: 28, wind: 12, windDirection: 'E', humidity: 64, advice: 'Keep harvested grain covered.' },
+    },
+  },
+  Karnataka: {
+    Bengaluru: {
+      Bengaluru: { temperature: 24, rain: 42, wind: 15, windDirection: 'SW', humidity: 72, advice: 'Rain is possible; avoid leaf spraying.' },
+      Devanahalli: { temperature: 25, rain: 36, wind: 17, windDirection: 'W', humidity: 68, advice: 'Secure shade nets before stronger wind.' },
+    },
+    Mysuru: {
+      Mysuru: { temperature: 27, rain: 31, wind: 10, windDirection: 'SW', humidity: 65, advice: 'Check drainage around vegetable beds.' },
+      Nanjangud: { temperature: 28, rain: 27, wind: 8, windDirection: 'S', humidity: 63, advice: 'Morning is best for field work.' },
+    },
+  },
+  'Uttar Pradesh': {
+    Lucknow: {
+      Lucknow: { temperature: 32, rain: 16, wind: 9, windDirection: 'E', humidity: 56, advice: 'Irrigate only where the topsoil is dry.' },
+      Malihabad: { temperature: 31, rain: 22, wind: 8, windDirection: 'SE', humidity: 59, advice: 'Inspect mango leaves for moisture stress.' },
+    },
+    Varanasi: {
+      Varanasi: { temperature: 33, rain: 25, wind: 12, windDirection: 'E', humidity: 62, advice: 'Plan heavy work before noon.' },
+      Pindra: { temperature: 32, rain: 29, wind: 11, windDirection: 'SE', humidity: 64, advice: 'Keep a rain cover ready for produce.' },
+    },
+  },
 };
 
 const initialPosts: CommunityPost[] = [
@@ -200,7 +254,26 @@ const translations = {
       emptyTitle: 'Start the first conversation',
       emptyText: 'Share a question or tip from your field.',
     },
-    nav: { today: 'Today', ask: 'Ask', voice: 'Voice', map: 'Map', farmers: 'Farmers' },
+    nav: { today: 'Today', ask: 'Ask', voice: 'Voice', map: 'Map', farmers: 'Farmers', profile: 'Profile' },
+    profile: {
+      title: 'Farmer Profile',
+      location: 'Farm Location',
+      locationOn: 'GPS Active',
+      locationOff: 'Enable GPS',
+      locationError: 'Location off',
+      locationPrompt: 'We use location to give precise weather for your field.',
+      grantLocation: 'Grant Location Access',
+      daily: 'Daily Streak',
+      streakDays: '4 Days',
+      streakHint: 'Open daily for field tips',
+      dailyAction: 'Complete today’s field check',
+      dailyDone: 'Today’s field check is complete',
+      farmDetails: 'My Farm',
+      farmSize: 'Size: 12 Acres',
+      mainCrop: 'Crop: Cotton',
+      soilType: 'Soil: Black Cotton',
+      logout: 'Sign Out',
+    },
     language: {
       title: 'Choose your language',
       hint: 'Choose the app language. Voice playback supports all 22 Indian languages.',
@@ -208,7 +281,7 @@ const translations = {
       hindi: 'हिंदी',
       marathi: 'मराठी',
     },
-    common: { back: 'Back to today', profile: 'Choose language' },
+    common: { back: 'Back to today', profile: 'View farmer profile' },
   },
   Hindi: {
     home: {
@@ -296,7 +369,26 @@ const translations = {
       emptyTitle: 'पहली बातचीत शुरू करें',
       emptyText: 'अपने खेत का सवाल या सलाह साझा करें।',
     },
-    nav: { today: 'आज', ask: 'पूछें', voice: 'आवाज़', map: 'नक्शा', farmers: 'किसान' },
+    nav: { today: 'आज', ask: 'पूछें', voice: 'आवाज़', map: 'नक्शा', farmers: 'किसान', profile: 'प्रोफ़ाइल' },
+    profile: {
+      title: 'किसान प्रोफ़ाइल',
+      location: 'खेत का स्थान',
+      locationOn: 'GPS चालू',
+      locationOff: 'GPS चालू करें',
+      locationError: 'स्थान बंद',
+      locationPrompt: 'हम आपके खेत के लिए सटीक मौसम देने के लिए स्थान का उपयोग करते हैं।',
+      grantLocation: 'स्थान की अनुमति दें',
+      daily: 'दैनिक स्ट्रीक',
+      streakDays: '4 दिन',
+      streakHint: 'सलाह के लिए रोज़ खोलें',
+      dailyAction: 'आज खेत की जाँच पूरी करें',
+      dailyDone: 'आज खेत की जाँच पूरी हुई',
+      farmDetails: 'मेरा खेत',
+      farmSize: 'आकार: 12 एकड़',
+      mainCrop: 'फसल: कपास',
+      soilType: 'मिट्टी: काली कपास',
+      logout: 'लॉग आउट',
+    },
     language: {
       title: 'भाषा चुनें',
       hint: 'ऐप की भाषा चुनें। आवाज़ में भारत की सभी 22 भाषाएँ उपलब्ध हैं।',
@@ -304,7 +396,7 @@ const translations = {
       hindi: 'हिंदी',
       marathi: 'मराठी',
     },
-    common: { back: 'आज पर वापस', profile: 'भाषा चुनें' },
+    common: { back: 'आज पर वापस', profile: 'किसान प्रोफ़ाइल देखें' },
   },
   Marathi: {
     home: {
@@ -392,7 +484,26 @@ const translations = {
       emptyTitle: 'पहिला संवाद सुरू करा',
       emptyText: 'तुमच्या शेतातील प्रश्न किंवा सल्ला शेअर करा.',
     },
-    nav: { today: 'आज', ask: 'विचारा', voice: 'आवाज', map: 'नकाशा', farmers: 'शेतकरी' },
+    nav: { today: 'आज', ask: 'विचारा', voice: 'आवाज', map: 'नकाशा', farmers: 'शेतकरी', profile: 'प्रोफाइल' },
+    profile: {
+      title: 'शेतकरी प्रोफाइल',
+      location: 'शेताचे ठिकाण',
+      locationOn: 'GPS चालू',
+      locationOff: 'GPS चालू करा',
+      locationError: 'स्थान बंद',
+      locationPrompt: 'आम्ही तुमच्या शेतासाठी अचूक हवामान देण्यासाठी स्थानाचा वापर करतो.',
+      grantLocation: 'स्थानाची परवानगी द्या',
+      daily: 'दैनिक स्ट्रीक',
+      streakDays: '4 दिवस',
+      streakHint: 'सल्ल्यासाठी रोज उघडा',
+      dailyAction: 'आजची शेत तपासणी पूर्ण करा',
+      dailyDone: 'आजची शेत तपासणी पूर्ण झाली',
+      farmDetails: 'माझे शेत',
+      farmSize: 'आकार: 12 एकर',
+      mainCrop: 'पीक: कापूस',
+      soilType: 'माती: काळी कापूस',
+      logout: 'लॉग आउट',
+    },
     language: {
       title: 'भाषा निवडा',
       hint: 'अॅपची भाषा निवडा. आवाजात भारतातील सर्व 22 भाषा उपलब्ध आहेत.',
@@ -400,7 +511,7 @@ const translations = {
       hindi: 'हिंदी',
       marathi: 'मराठी',
     },
-    common: { back: 'आजवर परत', profile: 'भाषा निवडा' },
+    common: { back: 'आजवर परत', profile: 'शेतकरी प्रोफाइल पहा' },
   },
 } satisfies Record<CoreLanguage, object>;
 
@@ -410,6 +521,27 @@ const getCopy = (language: Language): Copy => {
   if (language === 'Hindi' || language === 'Marathi') return translations[language];
   return translations.English;
 };
+
+const localTranslationPreview = (message: string, target: Language) => {
+  if (target === 'English') return message;
+  const phraseReplacements: Partial<Record<Language, Array<[RegExp, string]>>> = {
+    Hindi: [[/rain/gi, 'बारिश'], [/weather/gi, 'मौसम'], [/field/gi, 'खेत'], [/water/gi, 'पानी'], [/farmer/gi, 'किसान']],
+    Marathi: [[/rain/gi, 'पाऊस'], [/weather/gi, 'हवामान'], [/field/gi, 'शेत'], [/water/gi, 'पाणी'], [/farmer/gi, 'शेतकरी']],
+  };
+  const replacements = phraseReplacements[target];
+  if (!replacements) {
+    const name = languageCatalog.find((item) => item.key === target)?.nativeName ?? target;
+    return `${name}: Full sentence translation needs an online translation service. This offline panel keeps the original safe: ${message}`;
+  }
+  return replacements.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), message);
+};
+
+async function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), milliseconds)),
+  ]);
+}
 
 const starterMessages = (copy: Copy): ChatMessage[] => [
   { id: 'welcome', role: 'assistant', message: copy.chat.welcome },
@@ -435,6 +567,33 @@ export default function HomeScreen() {
   const selectedLanguage = languageCatalog.find((item) => item.key === language) ?? languageCatalog[0];
   const [voiceQuestion, setVoiceQuestion] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [locationState, setLocationState] = useState<'prompt' | 'loading' | 'granted' | 'denied'>('prompt');
+  const [geoLabel, setGeoLabel] = useState<string | null>(null);
+  const [dailyCheckDone, setDailyCheckDone] = useState(false);
+
+  const loadCurrentLocation = async () => {
+    const position =
+      (await Location.getLastKnownPositionAsync().catch(() => null)) ??
+      (await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null),
+        6000,
+      ));
+    if (!position) {
+      setGeoLabel('Location available, waiting for GPS fix');
+      return;
+    }
+    if (Platform.OS === 'web') {
+      setGeoLabel(`${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`);
+      return;
+    }
+    const geo = await Location.reverseGeocodeAsync(position.coords).catch(() => null);
+    const place = geo?.[0];
+    setGeoLabel(
+      place
+        ? [place.city || place.district || place.subregion, place.region].filter(Boolean).join(', ')
+        : `${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}`,
+    );
+  };
 
   useEffect(() => {
     AsyncStorage.getItem('weathergpt-community-posts')
@@ -443,6 +602,13 @@ export default function HomeScreen() {
       })
       .catch(() => undefined)
       .finally(() => setIsLoadingPosts(false));
+  }, []);
+
+  useEffect(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    AsyncStorage.getItem('weathergpt-daily-field-check')
+      .then((savedDate) => setDailyCheckDone(savedDate === todayKey))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -457,11 +623,43 @@ export default function HomeScreen() {
     Speech.stop();
   }, []);
 
+  useEffect(() => {
+    Location.getForegroundPermissionsAsync().then((res) => {
+      if (res.granted) {
+        setLocationState('granted');
+        loadCurrentLocation().catch(() => undefined);
+      } else if (!res.canAskAgain) {
+        setLocationState('denied');
+      }
+    });
+  }, []);
+
+  const requestLocation = async () => {
+    setLocationState('loading');
+    const permission = await withTimeout(Location.requestForegroundPermissionsAsync(), 6000).catch(() => null);
+    if (!permission?.granted) {
+      setLocationState('denied');
+      return;
+    }
+    setLocationState('granted');
+    await loadCurrentLocation().catch(() => {
+      setGeoLabel('GPS is on, but a location fix is not available yet');
+    });
+  };
+
+  const completeDailyCheck = () => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    setDailyCheckDone(true);
+    AsyncStorage.setItem('weathergpt-daily-field-check', todayKey).catch(() => undefined);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined);
+  };
+
   const activeTitle = useMemo(() => {
     if (screen === 'chat') return copy.chat.title;
     if (screen === 'voice') return copy.chat.voiceTitle;
     if (screen === 'map') return copy.map.title;
     if (screen === 'community') return copy.community.title;
+    if (screen === 'profile') return copy.profile.title;
     return '';
   }, [copy, screen]);
 
@@ -588,7 +786,7 @@ export default function HomeScreen() {
             onChat={() => selectScreen('chat')}
             onMap={() => selectScreen('map')}
             onCommunity={() => selectScreen('community')}
-            onLanguage={() => setShowLanguagePicker(true)}
+            onProfile={() => selectScreen('profile')}
           />
         ) : screen === 'chat' ? (
           <ChatView
@@ -625,7 +823,7 @@ export default function HomeScreen() {
             onSelectPoint={setSelectedMapPoint}
             onSelectLayer={setMapLayer}
           />
-        ) : (
+        ) : screen === 'community' ? (
           <CommunityView
             colors={colors}
             copy={copy}
@@ -633,6 +831,17 @@ export default function HomeScreen() {
             isLoading={isLoadingPosts}
             onLike={toggleLike}
             onAdd={() => setShowPostComposer(true)}
+          />
+        ) : (
+          <ProfileView
+            colors={colors}
+            copy={copy}
+            locationState={locationState}
+            geoLabel={geoLabel}
+            dailyCheckDone={dailyCheckDone}
+            onRequestLocation={requestLocation}
+            onCompleteDailyCheck={completeDailyCheck}
+            onLanguage={() => setShowLanguagePicker(true)}
           />
         )}
       </ScrollView>
@@ -743,14 +952,14 @@ function HomeView({
   onChat,
   onMap,
   onCommunity,
-  onLanguage,
+  onProfile,
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
   onChat: () => void;
   onMap: () => void;
   onCommunity: () => void;
-  onLanguage: () => void;
+  onProfile: () => void;
 }) {
   return (
     <>
@@ -761,7 +970,7 @@ function HomeView({
         </View>
         <Pressable
           accessibilityLabel={copy.common.profile}
-          onPress={onLanguage}
+          onPress={onProfile}
           style={({ pressed }) => [
             styles.avatar,
             { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder, opacity: pressed ? 0.75 : 1 },
@@ -879,6 +1088,13 @@ function ChatView({
   onQuickQuestion: (value: string) => void;
   onListen: () => void;
 }) {
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
+  const [targetLanguage, setTargetLanguage] = useState<Language>('Hindi');
+
+  const toggleTranslate = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    setTranslatingId(current => current === id ? null : id);
+  };
   return (
     <>
       <View style={styles.chatIntro}>
@@ -910,14 +1126,47 @@ function ChatView({
                 <Feather name="sun" size={12} color={colors.accentForeground} />
               </View>
             ) : null}
-            <Text
-              style={[
-                styles.messageText,
-                { color: item.role === 'user' ? colors.primaryForeground : colors.foreground },
-              ]}
-            >
-              {item.message}
-            </Text>
+            <View style={styles.messageContentWrap}>
+              <Text
+                style={[
+                  styles.messageText,
+                  { color: item.role === 'user' ? colors.primaryForeground : colors.foreground },
+                ]}
+              >
+                {item.message}
+              </Text>
+              <Pressable
+                onPress={() => toggleTranslate(item.id)}
+                style={({ pressed }) => [styles.translateChatButton, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Feather name="globe" size={12} color={translatingId === item.id ? colors.primary : item.role === 'user' ? colors.primaryForeground : colors.mutedForeground} />
+                <Text style={[styles.translateChatText, { color: translatingId === item.id ? colors.primary : item.role === 'user' ? colors.primaryForeground : colors.mutedForeground }]}>Translate</Text>
+              </Pressable>
+              {translatingId === item.id && (
+                <View style={[styles.chatTranslationBox, { backgroundColor: colors.secondary }]}>
+                  <Text style={[styles.translationLabel, { color: colors.leafDark }]}>OFFLINE TRANSLATION DEMO</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.translationLanguageRow}>
+                    {languageCatalog.map((languageItem) => (
+                      <Pressable
+                        key={languageItem.key}
+                        onPress={() => setTargetLanguage(languageItem.key)}
+                        style={[
+                          styles.translationLanguageChip,
+                          { backgroundColor: targetLanguage === languageItem.key ? colors.primary : colors.card },
+                        ]}
+                      >
+                        <Text style={[styles.translationLanguageText, { color: targetLanguage === languageItem.key ? colors.primaryForeground : colors.foreground }]}>
+                          {languageItem.nativeName}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                  <Text style={[styles.chatTranslationText, { color: colors.leafDark }]}>
+                    {localTranslationPreview(item.message, targetLanguage)}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         ))}
         {isSending ? (
@@ -1113,11 +1362,80 @@ function MapView({
   onSelectPoint: (value: string) => void;
   onSelectLayer: (value: 'rain' | 'wind' | 'fields') => void;
 }) {
+  const [selectedState, setSelectedState] = useState('Maharashtra');
+  const [selectedDistrict, setSelectedDistrict] = useState('Nashik');
+  const states = Object.keys(indiaWeatherSimulator);
+  const districts = Object.keys(indiaWeatherSimulator[selectedState]);
+  const cityWeather = indiaWeatherSimulator[selectedState][selectedDistrict];
+  const cities = Object.keys(cityWeather);
+  const selectedCity = cityWeather[selectedPoint] ? selectedPoint : cities[0];
+  const weather = cityWeather[selectedCity];
+
+  const chooseState = (state: string) => {
+    const district = Object.keys(indiaWeatherSimulator[state])[0];
+    const city = Object.keys(indiaWeatherSimulator[state][district])[0];
+    setSelectedState(state);
+    setSelectedDistrict(district);
+    onSelectPoint(city);
+    Haptics.selectionAsync().catch(() => undefined);
+  };
+
+  const chooseDistrict = (district: string) => {
+    setSelectedDistrict(district);
+    onSelectPoint(Object.keys(indiaWeatherSimulator[selectedState][district])[0]);
+    Haptics.selectionAsync().catch(() => undefined);
+  };
+
   return (
     <>
       <Text style={[styles.mapSubtitle, { color: colors.mutedForeground }]}>
-        {copy.map.subtitle}
+        Tap a state, district, and city to explore simulated local weather.
       </Text>
+      <View style={[styles.simulatorNotice, { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder }]}>
+        <Feather name="compass" size={16} color={colors.accent} />
+        <View style={styles.simulatorNoticeCopy}>
+          <Text style={[styles.simulatorNoticeTitle, { color: colors.foreground }]}>INDIA WEATHER MAP SIMULATOR</Text>
+          <Text style={[styles.simulatorNoticeText, { color: colors.mutedForeground }]}>Demo forecasts for learning and planning</Text>
+        </View>
+      </View>
+      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>1. State</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mapPickerRow}>
+        {states.map((state) => (
+          <Pressable
+            key={state}
+            onPress={() => chooseState(state)}
+            style={({ pressed }) => [
+              styles.mapChoice,
+              {
+                backgroundColor: selectedState === state ? colors.primary : colors.card,
+                borderColor: selectedState === state ? colors.primary : colors.border,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.mapChoiceText, { color: selectedState === state ? colors.primaryForeground : colors.foreground }]}>{state}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>2. District</Text>
+      <View style={styles.districtRow}>
+        {districts.map((district) => (
+          <Pressable
+            key={district}
+            onPress={() => chooseDistrict(district)}
+            style={({ pressed }) => [
+              styles.districtChoice,
+              {
+                backgroundColor: selectedDistrict === district ? colors.secondary : colors.card,
+                borderColor: selectedDistrict === district ? colors.primary : colors.border,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}
+          >
+            <Text style={[styles.districtChoiceText, { color: colors.foreground }]}>{district}</Text>
+          </Pressable>
+        ))}
+      </View>
       <View style={[styles.mapCard, { backgroundColor: colors.mapLand, borderColor: colors.border }]}>
         <View style={[styles.mapWaterShape, { backgroundColor: colors.mapWater }]} />
         <View style={[styles.mapRoad, styles.roadOne, { borderColor: colors.card }]} />
@@ -1125,17 +1443,13 @@ function MapView({
         <View style={[styles.mapFieldShape, styles.fieldOne, { backgroundColor: colors.mapField }]} />
         <View style={[styles.mapFieldShape, styles.fieldTwo, { backgroundColor: colors.mapField }]} />
         <View style={[styles.mapFieldShape, styles.fieldThree, { backgroundColor: colors.mapField }]} />
-        <MapPoint id="Your farm" label={copy.map.yourFarm} x="46%" y="46%" active={selectedPoint === 'Your farm'} colors={colors} onPress={onSelectPoint} />
-        <MapPoint id="Dindori" label={copy.map.dindori} x="23%" y="27%" active={selectedPoint === 'Dindori'} colors={colors} onPress={onSelectPoint} />
-        <MapPoint id="Sinnar" label={copy.map.sinnar} x="70%" y="69%" active={selectedPoint === 'Sinnar'} colors={colors} onPress={onSelectPoint} />
+        <View style={[styles.politicalBoundary, styles.boundaryOne, { borderColor: colors.warmBorder }]} />
+        <View style={[styles.politicalBoundary, styles.boundaryTwo, { borderColor: colors.warmBorder }]} />
+        <MapPoint id={cities[0]} label={cities[0]} x="27%" y="29%" active={selectedCity === cities[0]} colors={colors} onPress={onSelectPoint} />
+        <MapPoint id={cities[1]} label={cities[1]} x="62%" y="62%" active={selectedCity === cities[1]} colors={colors} onPress={onSelectPoint} />
         <View style={[styles.mapLegend, { backgroundColor: colors.card }]}>
-          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.rain }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>{copy.map.lightRain}</Text></View>
-          <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.sun }]} /><Text style={[styles.legendText, { color: colors.foreground }]}>{copy.map.clear}</Text></View>
-        </View>
-        <View style={[styles.zoomControls, { backgroundColor: colors.card }]}>
-          <Feather name="plus" size={18} color={colors.foreground} />
-          <View style={[styles.zoomDivider, { backgroundColor: colors.border }]} />
-          <Feather name="minus" size={18} color={colors.foreground} />
+          <Text style={[styles.legendHeading, { color: colors.foreground }]}>{selectedState}</Text>
+          <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{selectedDistrict} district</Text>
         </View>
       </View>
       <View style={styles.layerRow}>
@@ -1165,19 +1479,36 @@ function MapView({
         </View>
         <View style={styles.mapDetailCopy}>
           <Text style={[styles.mapDetailPlace, { color: colors.foreground }]}>
-            {selectedPoint === 'Your farm'
-              ? copy.map.yourFarm
-              : selectedPoint === 'Dindori'
-                ? copy.map.dindori
-                : copy.map.sinnar}
+            {selectedCity}, {selectedDistrict}
           </Text>
           <Text style={[styles.mapDetailText, { color: colors.mutedForeground }]}>
-            {layer === 'rain' ? copy.map.rainDetail : layer === 'wind' ? copy.map.windDetail : copy.map.fieldsDetail}
+            {layer === 'rain'
+              ? `${weather.rain}% rain chance`
+              : layer === 'wind'
+                ? `${weather.wind} km/h from ${weather.windDirection}`
+                : weather.advice}
           </Text>
         </View>
-        <Feather name="chevron-right" size={19} color={colors.mutedForeground} />
+        <Text style={[styles.mapTemperature, { color: colors.foreground }]}>{weather.temperature}°</Text>
       </View>
-      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>{copy.map.updated}</Text>
+      <View style={styles.weatherMetricRow}>
+        {[
+          { icon: 'cloud-rain' as IconName, value: `${weather.rain}%`, label: 'Rain' },
+          { icon: 'wind' as IconName, value: `${weather.wind} km/h`, label: weather.windDirection },
+          { icon: 'droplet' as IconName, value: `${weather.humidity}%`, label: 'Humidity' },
+        ].map((metric) => (
+          <View key={metric.label} style={[styles.weatherMetric, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name={metric.icon} size={16} color={colors.primary} />
+            <Text style={[styles.weatherMetricValue, { color: colors.foreground }]}>{metric.value}</Text>
+            <Text style={[styles.weatherMetricLabel, { color: colors.mutedForeground }]}>{metric.label}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={[styles.simulatorAdvice, { backgroundColor: colors.secondary }]}>
+        <Feather name="check-circle" size={18} color={colors.primary} />
+        <Text style={[styles.simulatorAdviceText, { color: colors.leafDark }]}>{weather.advice}</Text>
+      </View>
+      <Text style={[styles.mapUpdated, { color: colors.mutedForeground }]}>Simulator data • not a live forecast</Text>
     </>
   );
 }
@@ -1197,6 +1528,13 @@ function CommunityView({
   onLike: (id: string) => void;
   onAdd: () => void;
 }) {
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
+  const [targetLanguage, setTargetLanguage] = useState<Language>('Hindi');
+
+  const toggleTranslate = (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    setTranslatingId(current => current === id ? null : id);
+  };
   return (
     <>
       <View style={styles.communityHeader}>
@@ -1260,10 +1598,44 @@ function CommunityView({
                 <Feather name="message-circle" size={17} color={colors.mutedForeground} />
                 <Text style={[styles.postActionText, { color: colors.mutedForeground }]}>{copy.community.reply}</Text>
               </View>
+              <Pressable
+                onPress={() => toggleTranslate(post.id)}
+                style={({ pressed }) => [styles.postAction, { opacity: pressed ? 0.55 : 1 }]}
+              >
+                <Feather name="globe" size={17} color={translatingId === post.id ? colors.primary : colors.mutedForeground} />
+                <Text style={[styles.postActionText, { color: translatingId === post.id ? colors.primary : colors.mutedForeground }]}>A/अ</Text>
+              </Pressable>
               <Pressable style={({ pressed }) => [styles.postAction, { marginLeft: 'auto', opacity: pressed ? 0.55 : 1 }]}>
                 <Feather name="share-2" size={17} color={colors.mutedForeground} />
               </Pressable>
             </View>
+            {translatingId === post.id && (
+              <View style={[styles.translationBox, { backgroundColor: colors.secondary }]}>
+                <View style={styles.translationTop}>
+                  <Text style={[styles.translationLabel, { color: colors.leafDark }]}>OFFLINE TRANSLATION DEMO</Text>
+                  <Feather name="x" size={14} color={colors.leafDark} onPress={() => setTranslatingId(null)} />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.translationLanguageRow}>
+                  {languageCatalog.map((languageItem) => (
+                    <Pressable
+                      key={languageItem.key}
+                      onPress={() => setTargetLanguage(languageItem.key)}
+                      style={[
+                        styles.translationLanguageChip,
+                        { backgroundColor: targetLanguage === languageItem.key ? colors.primary : colors.card },
+                      ]}
+                    >
+                      <Text style={[styles.translationLanguageText, { color: targetLanguage === languageItem.key ? colors.primaryForeground : colors.foreground }]}>
+                        {languageItem.nativeName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <Text style={[styles.translationText, { color: colors.foreground }]}>
+                  {localTranslationPreview(post.message, targetLanguage)}
+                </Text>
+              </View>
+            )}
           </View>
         ))
       ) : (
@@ -1296,6 +1668,7 @@ function BottomNav({
     { id: 'voice', label: copy.nav.voice, icon: 'volume-2' },
     { id: 'map', label: copy.nav.map, icon: 'map' },
     { id: 'community', label: copy.nav.farmers, icon: 'users' },
+    { id: 'profile', label: copy.nav.profile, icon: 'user' },
   ];
   return (
     <View style={[styles.bottomNav, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 10) }]}>
@@ -1424,6 +1797,147 @@ function answerFor(question: string, copy: Copy) {
   return copy.chat.generalAnswer;
 }
 
+function ProfileView({
+  colors,
+  copy,
+  locationState,
+  geoLabel,
+  dailyCheckDone,
+  onRequestLocation,
+  onCompleteDailyCheck,
+  onLanguage,
+}: {
+  colors: ReturnType<typeof useColors>;
+  copy: Copy;
+  locationState: 'prompt' | 'loading' | 'granted' | 'denied';
+  geoLabel: string | null;
+  dailyCheckDone: boolean;
+  onRequestLocation: () => void;
+  onCompleteDailyCheck: () => void;
+  onLanguage: () => void;
+}) {
+  return (
+    <>
+      <View style={styles.profileHeader}>
+        <View style={[styles.profileAvatar, { backgroundColor: colors.accent, borderColor: colors.warmBorder }]}>
+          <Feather name="user" size={32} color={colors.accentForeground} />
+        </View>
+        <Text style={[styles.profileName, { color: colors.foreground }]}>{copy.home.greeting}</Text>
+      </View>
+
+      <View style={styles.profileSection}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.profile.location}</Text>
+        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.profileIconWrap, { backgroundColor: locationState === 'granted' ? colors.secondary : colors.muted }]}>
+              <Feather name="map-pin" size={18} color={locationState === 'granted' ? colors.primary : colors.mutedForeground} />
+            </View>
+            <View style={styles.profileRowCopy}>
+              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>
+                {locationState === 'granted' ? geoLabel || copy.profile.locationOn : locationState === 'prompt' ? copy.profile.locationPrompt : copy.profile.locationError}
+              </Text>
+              {locationState === 'granted' && <Text style={[styles.profileRowSubtitle, { color: colors.primary }]}>{copy.profile.locationOn}</Text>}
+            </View>
+          </View>
+          {locationState !== 'granted' && (
+            <Pressable
+              onPress={onRequestLocation}
+              disabled={locationState === 'loading'}
+              style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.primary, opacity: pressed || locationState === 'loading' ? 0.7 : 1 }]}
+            >
+              {locationState === 'loading' ? (
+                <ActivityIndicator size="small" color={colors.primaryForeground} />
+              ) : (
+                <Text style={[styles.actionButtonText, { color: colors.primaryForeground }]}>{copy.profile.grantLocation}</Text>
+              )}
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      <View style={styles.profileSection}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.profile.daily}</Text>
+        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.profileIconWrap, { backgroundColor: colors.warmSurface }]}>
+              <Feather name="zap" size={18} color={colors.sun} />
+            </View>
+            <View style={styles.profileRowCopy}>
+              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.profile.streakDays}</Text>
+              <Text style={[styles.profileRowSubtitle, { color: colors.mutedForeground }]}>{copy.profile.streakHint}</Text>
+            </View>
+          </View>
+          <Pressable
+            onPress={onCompleteDailyCheck}
+            disabled={dailyCheckDone}
+            style={({ pressed }) => [
+              styles.dailyCheckButton,
+              {
+                backgroundColor: dailyCheckDone ? colors.secondary : colors.accent,
+                opacity: pressed ? 0.76 : 1,
+              },
+            ]}
+          >
+            <Feather
+              name={dailyCheckDone ? 'check-circle' : 'circle'}
+              size={17}
+              color={dailyCheckDone ? colors.primary : colors.accentForeground}
+            />
+            <Text style={[styles.dailyCheckText, { color: dailyCheckDone ? colors.leafDark : colors.accentForeground }]}>
+              {dailyCheckDone ? copy.profile.dailyDone : copy.profile.dailyAction}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.profileSection}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.profile.farmDetails}</Text>
+        <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.profileRow}>
+            <View style={[styles.profileIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="grid" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.profileRowCopy}>
+              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.profile.farmSize}</Text>
+              <Text style={[styles.profileRowSubtitle, { color: colors.mutedForeground }]}>{copy.profile.mainCrop}</Text>
+            </View>
+          </View>
+          <View style={styles.profileDivider} />
+          <View style={styles.profileRow}>
+            <View style={[styles.profileIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="layers" size={18} color={colors.primary} />
+            </View>
+            <View style={styles.profileRowCopy}>
+              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.profile.soilType}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.profileSection}>
+        <Pressable
+          onPress={onLanguage}
+          style={({ pressed }) => [styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.7 : 1 }]}
+        >
+          <View style={styles.profileRow}>
+            <View style={[styles.profileIconWrap, { backgroundColor: colors.muted }]}>
+              <Feather name="globe" size={18} color={colors.foreground} />
+            </View>
+            <View style={styles.profileRowCopy}>
+              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.language.title}</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </View>
+        </Pressable>
+      </View>
+
+      <Text style={[styles.profileLocalNote, { color: colors.mutedForeground }]}>
+        This profile and daily activity are stored only on this device.
+      </Text>
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   app: { flex: 1 },
   headerRow: {
@@ -1498,13 +2012,27 @@ const styles = StyleSheet.create({
   micButton: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   sendButton: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   chatFootnote: { textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 12, paddingHorizontal: 20 },
-  mapSubtitle: { marginHorizontal: 22, marginTop: 69, marginBottom: 15, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  mapSubtitle: { marginHorizontal: 22, marginTop: 69, marginBottom: 12, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  simulatorNotice: { marginHorizontal: 18, borderWidth: 1, borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  simulatorNoticeCopy: { flex: 1, gap: 2 },
+  simulatorNoticeTitle: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.8 },
+  simulatorNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  mapPickerLabel: { marginHorizontal: 22, marginTop: 16, marginBottom: 8, fontFamily: 'Inter_700Bold', fontSize: 12 },
+  mapPickerRow: { paddingHorizontal: 18, gap: 8 },
+  mapChoice: { minHeight: 40, borderRadius: 13, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  mapChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  districtRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, marginBottom: 14 },
+  districtChoice: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  districtChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   mapCard: { marginHorizontal: 18, height: Math.min(Dimensions.get('window').width * 0.95, 370), borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
   mapWaterShape: { position: 'absolute', width: '80%', height: '26%', borderRadius: 100, right: -35, top: 45, transform: [{ rotate: '-18deg' }] },
   mapRoad: { position: 'absolute', height: '140%', width: 4, top: -50, backgroundColor: 'transparent', borderLeftWidth: 2, transform: [{ rotate: '31deg' }] },
   roadOne: { left: '43%' },
   roadTwo: { left: '70%', transform: [{ rotate: '-49deg' }] },
   mapFieldShape: { position: 'absolute', width: 86, height: 56, borderRadius: 20, transform: [{ rotate: '17deg' }] },
+  politicalBoundary: { position: 'absolute', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 34, opacity: 0.9 },
+  boundaryOne: { left: '9%', top: '13%', width: '42%', height: '37%', transform: [{ rotate: '-8deg' }] },
+  boundaryTwo: { right: '8%', bottom: '12%', width: '48%', height: '45%', transform: [{ rotate: '9deg' }] },
   fieldOne: { left: '8%', top: '57%' },
   fieldTwo: { right: '6%', top: '21%', transform: [{ rotate: '-13deg' }] },
   fieldThree: { right: '17%', bottom: '13%', transform: [{ rotate: '21deg' }] },
@@ -1516,6 +2044,7 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 7, height: 7, borderRadius: 4 },
   legendText: { fontFamily: 'Inter_500Medium', fontSize: 10 },
+  legendHeading: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   zoomControls: { position: 'absolute', right: 12, bottom: 12, borderRadius: 11, paddingVertical: 5, paddingHorizontal: 7, gap: 5, alignItems: 'center', shadowColor: '#173126', shadowOpacity: 0.08, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   zoomDivider: { width: 18, height: 1 },
   layerRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, marginTop: 13 },
@@ -1526,6 +2055,13 @@ const styles = StyleSheet.create({
   mapDetailCopy: { flex: 1, gap: 3 },
   mapDetailPlace: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   mapDetailText: { fontFamily: 'Inter_400Regular', fontSize: 12 },
+  mapTemperature: { fontFamily: 'Inter_700Bold', fontSize: 25 },
+  weatherMetricRow: { flexDirection: 'row', marginHorizontal: 18, marginTop: 10, gap: 8 },
+  weatherMetric: { flex: 1, borderWidth: 1, borderRadius: 14, paddingVertical: 12, alignItems: 'center', gap: 3 },
+  weatherMetricValue: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  weatherMetricLabel: { fontFamily: 'Inter_400Regular', fontSize: 9 },
+  simulatorAdvice: { marginHorizontal: 18, marginTop: 10, borderRadius: 15, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  simulatorAdviceText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 12, lineHeight: 17 },
   mapUpdated: { textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 12 },
   voiceIntro: { marginHorizontal: 22, marginTop: 69 },
   voiceBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
@@ -1593,4 +2129,34 @@ const styles = StyleSheet.create({
   postInput: { minHeight: 110, borderRadius: 16, marginTop: 16, padding: 13, fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20 },
   publishButton: { marginTop: 12, minHeight: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   publishText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  translationBox: { marginHorizontal: -14, marginBottom: -14, marginTop: 12, padding: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  translationTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  translationLabel: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.8 },
+  translationText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },
+  translationLanguageRow: { gap: 6, paddingVertical: 8 },
+  translationLanguageChip: { minHeight: 31, borderRadius: 10, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center' },
+  translationLanguageText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  messageContentWrap: { flex: 1, gap: 6 },
+  translateChatButton: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginTop: 4 },
+  translateChatText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  chatTranslationBox: { padding: 8, borderRadius: 8, marginTop: 2 },
+  chatTranslationText: { fontFamily: 'Inter_500Medium', fontSize: 12, fontStyle: 'italic' },
+  profileHeader: { alignItems: 'center', marginTop: 40, marginBottom: 30 },
+  profileAvatar: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  profileName: { fontFamily: 'Inter_700Bold', fontSize: 24, letterSpacing: -0.5 },
+  profileSection: { paddingHorizontal: 18, marginBottom: 24 },
+  profileCard: { borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 12 },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  profileIconWrap: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  profileRowCopy: { flex: 1, gap: 2 },
+  profileRowTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  profileRowSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 13 },
+  profileDivider: { height: 1, backgroundColor: '#EDF2EA', marginVertical: 14 },
+  dailyCheckButton: { minHeight: 46, borderRadius: 14, marginTop: 15, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dailyCheckText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  actionButton: { minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  actionButtonText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  profileLocalNote: { marginHorizontal: 30, marginTop: 2, marginBottom: 38, textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
+  logoutButton: { marginHorizontal: 18, marginTop: 20, marginBottom: 40, minHeight: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF5F5' },
+  logoutText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
 });
