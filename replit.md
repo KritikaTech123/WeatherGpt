@@ -41,7 +41,7 @@ WeatherGPT for Farmers is a phone-first weather companion that turns forecast in
 - Field advice card with a crop-aware action suggestion.
 - WeatherGPT chat with quick questions, question input, and a voice-friendly microphone interaction.
 - Interactive field map with tap-to-select locations and rain, wind, and field layers.
-- Offline India weather simulator with state, district, and city drill-down plus rain, wind direction/speed, humidity, and field advice.
+- Offline political-style India weather simulator with all state/UT boundaries visible, tappable supported states, district/city drill-down, rain, wind direction/speed, humidity, and field advice.
 - Farmer interaction feed with local posts, likes, and a share composer.
 - Per-message offline translation panels in chat and farmer interaction, with all configured Indian languages available as targets and clear service limitations.
 - Multilingual UI switcher for English, Hindi, and Marathi across navigation, weather advice, chat prompts, map labels, and community actions.

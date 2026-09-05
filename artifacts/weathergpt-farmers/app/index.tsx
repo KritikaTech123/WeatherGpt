@@ -3,6 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,9 +18,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import type { DimensionValue } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
+import { statePaths, mapBounds } from '@/assets/india-states-paths';
 
 import * as Location from 'expo-location';
 
@@ -1347,6 +1350,37 @@ function VoiceView({
   );
 }
 
+// Political boundaries derived from AbhinavSwami28/india-official-geojson (MIT).
+// City markers are spaced slightly for uncluttered tap targets on mobile.
+const cityCoords: Record<string, { x: string; y: string }> = {
+  Nashik: { x: '17.0%', y: '58.0%' },
+  Dindori: { x: '21.0%', y: '56.0%' },
+  Pune: { x: '17.0%', y: '64.0%' },
+  Baramati: { x: '24.0%', y: '66.0%' },
+
+  Ludhiana: { x: '25.0%', y: '21.0%' },
+  Khanna: { x: '29.0%', y: '24.0%' },
+  Amritsar: { x: '20.0%', y: '18.0%' },
+  Ajnala: { x: '24.0%', y: '16.0%' },
+
+  Bengaluru: { x: '30.0%', y: '79.0%' },
+  Devanahalli: { x: '35.0%', y: '82.0%' },
+  Mysuru: { x: '26.0%', y: '82.0%' },
+  Nanjangud: { x: '29.0%', y: '86.0%' },
+
+  Lucknow: { x: '45.0%', y: '34.0%' },
+  Malihabad: { x: '41.0%', y: '38.0%' },
+  Varanasi: { x: '52.0%', y: '40.0%' },
+  Pindra: { x: '48.0%', y: '43.0%' },
+};
+
+const stateHotspots: Record<string, { x: DimensionValue; y: DimensionValue; shortLabel: string }> = {
+  Punjab: { x: '23%', y: '19%', shortLabel: 'PB' },
+  'Uttar Pradesh': { x: '46%', y: '36%', shortLabel: 'UP' },
+  Maharashtra: { x: '20%', y: '58%', shortLabel: 'MH' },
+  Karnataka: { x: '29%', y: '78%', shortLabel: 'KA' },
+};
+
 function MapView({
   colors,
   copy,
@@ -1436,17 +1470,60 @@ function MapView({
           </Pressable>
         ))}
       </View>
-      <View style={[styles.mapCard, { backgroundColor: colors.mapLand, borderColor: colors.border }]}>
-        <View style={[styles.mapWaterShape, { backgroundColor: colors.mapWater }]} />
-        <View style={[styles.mapRoad, styles.roadOne, { borderColor: colors.card }]} />
-        <View style={[styles.mapRoad, styles.roadTwo, { borderColor: colors.card }]} />
-        <View style={[styles.mapFieldShape, styles.fieldOne, { backgroundColor: colors.mapField }]} />
-        <View style={[styles.mapFieldShape, styles.fieldTwo, { backgroundColor: colors.mapField }]} />
-        <View style={[styles.mapFieldShape, styles.fieldThree, { backgroundColor: colors.mapField }]} />
-        <View style={[styles.politicalBoundary, styles.boundaryOne, { borderColor: colors.warmBorder }]} />
-        <View style={[styles.politicalBoundary, styles.boundaryTwo, { borderColor: colors.warmBorder }]} />
-        <MapPoint id={cities[0]} label={cities[0]} x="27%" y="29%" active={selectedCity === cities[0]} colors={colors} onPress={onSelectPoint} />
-        <MapPoint id={cities[1]} label={cities[1]} x="62%" y="62%" active={selectedCity === cities[1]} colors={colors} onPress={onSelectPoint} />
+      <View style={[styles.mapCard, { backgroundColor: colors.mapWater, borderColor: colors.border, padding: 0, overflow: 'hidden' }]}>
+        <Svg viewBox={`${mapBounds.minX} ${mapBounds.minY} ${mapBounds.width} ${mapBounds.height}`} width="100%" height="100%" style={StyleSheet.absoluteFill}>
+          {Object.entries(statePaths).map(([name, d]) => {
+            const isSupported = states.includes(name);
+            const isSelected = selectedState === name;
+            return (
+              <Path
+                key={name}
+                d={d}
+                fill={isSupported ? (isSelected ? colors.mapField : colors.mapLand) : colors.card}
+                fillOpacity={isSupported ? 1 : 0.82}
+                stroke={isSelected ? colors.primary : colors.border}
+                strokeWidth={isSelected ? mapBounds.width / 210 : mapBounds.width / 500}
+              />
+            );
+          })}
+        </Svg>
+        {states.map((state) => {
+          const hotspot = stateHotspots[state];
+          return (
+            <Pressable
+              key={state}
+              accessibilityRole="button"
+              accessibilityLabel={`Select ${state} on the India map`}
+              onPress={() => chooseState(state)}
+              style={({ pressed }) => [
+                styles.stateHotspot,
+                {
+                  left: hotspot.x,
+                  top: hotspot.y,
+                  backgroundColor: selectedState === state ? colors.primary : colors.card,
+                  borderColor: selectedState === state ? colors.primaryForeground : colors.primary,
+                  opacity: pressed ? 0.68 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.stateHotspotText, { color: selectedState === state ? colors.primaryForeground : colors.primary }]}>
+                {hotspot.shortLabel}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {cities.map(city => (
+          <MapPoint
+            key={city}
+            id={city}
+            label={city}
+            x={cityCoords[city]?.x || '50%'}
+            y={cityCoords[city]?.y || '50%'}
+            active={selectedCity === city}
+            colors={colors}
+            onPress={onSelectPoint}
+          />
+        ))}
         <View style={[styles.mapLegend, { backgroundColor: colors.card }]}>
           <Text style={[styles.legendHeading, { color: colors.foreground }]}>{selectedState}</Text>
           <Text style={[styles.legendText, { color: colors.mutedForeground }]}>{selectedDistrict} district</Text>
@@ -1757,28 +1834,30 @@ function MapPoint({
 }: {
   id: string;
   label: string;
-  x: `${number}%`;
-  y: `${number}%`;
+  x: string;
+  y: string;
   active: boolean;
   colors: ReturnType<typeof useColors>;
   onPress: (value: string) => void;
 }) {
   return (
-    <Pressable
-      onPress={() => onPress(id)}
-      style={({ pressed }) => [
-        styles.mapPoint,
-        { left: x, top: y, opacity: pressed ? 0.66 : 1 },
-      ]}
-      accessibilityLabel={`Show weather for ${label}`}
-    >
-      <View style={[styles.mapPin, { backgroundColor: active ? colors.coral : colors.card, borderColor: active ? colors.card : colors.primary }]}>
-        <Feather name="map-pin" size={16} color={active ? colors.primaryForeground : colors.primary} />
-      </View>
-      <View style={[styles.mapLabel, { backgroundColor: colors.card }]}>
-        <Text style={[styles.mapLabelText, { color: colors.foreground }]}>{label}</Text>
-      </View>
-    </Pressable>
+    <View style={{ position: 'absolute', left: x as any, top: y as any, width: 0, height: 0, zIndex: active ? 10 : 1 }}>
+      <Pressable
+        onPress={() => onPress(id)}
+        style={({ pressed }) => [
+          styles.mapPoint,
+          { opacity: pressed ? 0.66 : 1 },
+        ]}
+        accessibilityLabel={`Show weather for ${label}`}
+      >
+        <View style={[styles.mapPin, { backgroundColor: active ? colors.coral : colors.card, borderColor: active ? colors.card : colors.primary }]}>
+          <Feather name="map-pin" size={16} color={active ? colors.primaryForeground : colors.primary} />
+        </View>
+        <View style={[styles.mapLabel, { backgroundColor: colors.card }]}>
+          <Text style={[styles.mapLabelText, { color: colors.foreground }]}>{label}</Text>
+        </View>
+      </Pressable>
+    </View>
   );
 }
 
@@ -2023,20 +2102,11 @@ const styles = StyleSheet.create({
   districtRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, marginBottom: 14 },
   districtChoice: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   districtChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  mapCard: { marginHorizontal: 18, height: Math.min(Dimensions.get('window').width * 0.95, 370), borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
-  mapWaterShape: { position: 'absolute', width: '80%', height: '26%', borderRadius: 100, right: -35, top: 45, transform: [{ rotate: '-18deg' }] },
-  mapRoad: { position: 'absolute', height: '140%', width: 4, top: -50, backgroundColor: 'transparent', borderLeftWidth: 2, transform: [{ rotate: '31deg' }] },
-  roadOne: { left: '43%' },
-  roadTwo: { left: '70%', transform: [{ rotate: '-49deg' }] },
-  mapFieldShape: { position: 'absolute', width: 86, height: 56, borderRadius: 20, transform: [{ rotate: '17deg' }] },
-  politicalBoundary: { position: 'absolute', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 34, opacity: 0.9 },
-  boundaryOne: { left: '9%', top: '13%', width: '42%', height: '37%', transform: [{ rotate: '-8deg' }] },
-  boundaryTwo: { right: '8%', bottom: '12%', width: '48%', height: '45%', transform: [{ rotate: '9deg' }] },
-  fieldOne: { left: '8%', top: '57%' },
-  fieldTwo: { right: '6%', top: '21%', transform: [{ rotate: '-13deg' }] },
-  fieldThree: { right: '17%', bottom: '13%', transform: [{ rotate: '21deg' }] },
-  mapPoint: { position: 'absolute', alignItems: 'center', transform: [{ translateX: -30 }, { translateY: -23 }] },
-  mapPin: { width: 35, height: 35, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
+  mapCard: { marginHorizontal: 18, aspectRatio: 29.229 / 33.204, borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  stateHotspot: { position: 'absolute', width: 38, height: 30, marginLeft: -19, marginTop: -15, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  stateHotspotText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.3 },
+  mapPoint: { position: 'absolute', alignItems: 'center', transform: [{ translateX: -20 }, { translateY: -17.5 }] },
+  mapPin: { width: 35, height: 35, borderRadius: 17.5, alignItems: 'center', justifyContent: 'center', borderWidth: 3 },
   mapLabel: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, marginTop: 3, shadowColor: '#173126', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   mapLabelText: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   mapLegend: { position: 'absolute', left: 12, bottom: 12, borderRadius: 11, padding: 9, gap: 5, shadowColor: '#173126', shadowOpacity: 0.08, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
