@@ -33,6 +33,7 @@ WeatherGPT for Farmers is a phone-first weather companion that turns forecast in
 - Farmer interaction posts are stored locally with AsyncStorage so creating and liking a post work immediately on a device.
 - The map uses a lightweight touch-friendly field map for the first mobile build; it is ready to be replaced by live GIS tiles when a mapping data source is connected.
 - Chat uses a local response layer for the first build, keeping the conversation fast and available offline while the live weather/LLM contract is defined.
+- Voice playback uses Expo Speech and the selected language's locale; device voice availability can vary by phone and installed language packs.
 
 ## Product
 
@@ -42,6 +43,8 @@ WeatherGPT for Farmers is a phone-first weather companion that turns forecast in
 - Interactive field map with tap-to-select locations and rain, wind, and field layers.
 - Farmer interaction feed with local posts, likes, and a share composer.
 - Multilingual UI switcher for English, Hindi, and Marathi across navigation, weather advice, chat prompts, map labels, and community actions.
+- Voice module with text-to-speech weather briefings, replay/stop controls, and language-aware Indian voice locale selection.
+- Voice language catalog includes English plus all 22 languages in the Eighth Schedule of the Indian Constitution.
 
 ## User preferences
 

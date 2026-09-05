@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -20,9 +21,33 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 
-type Screen = 'home' | 'chat' | 'map' | 'community';
+type Screen = 'home' | 'chat' | 'voice' | 'map' | 'community';
 type IconName = React.ComponentProps<typeof Feather>['name'];
-type Language = 'English' | 'Hindi' | 'Marathi';
+type CoreLanguage = 'English' | 'Hindi' | 'Marathi';
+type Language =
+  | 'English'
+  | 'Assamese'
+  | 'Bengali'
+  | 'Bodo'
+  | 'Dogri'
+  | 'Gujarati'
+  | 'Hindi'
+  | 'Kannada'
+  | 'Kashmiri'
+  | 'Konkani'
+  | 'Maithili'
+  | 'Malayalam'
+  | 'Manipuri'
+  | 'Marathi'
+  | 'Nepali'
+  | 'Odia'
+  | 'Punjabi'
+  | 'Sanskrit'
+  | 'Santali'
+  | 'Sindhi'
+  | 'Tamil'
+  | 'Telugu'
+  | 'Urdu';
 
 type CommunityPost = {
   id: string;
@@ -60,6 +85,32 @@ const initialPosts: CommunityPost[] = [
     crop: 'Tomato',
     likes: 9,
   },
+];
+
+const languageCatalog: { key: Language; nativeName: string; locale: string }[] = [
+  { key: 'English', nativeName: 'English', locale: 'en-IN' },
+  { key: 'Assamese', nativeName: 'অসমীয়া', locale: 'as-IN' },
+  { key: 'Bengali', nativeName: 'বাংলা', locale: 'bn-IN' },
+  { key: 'Bodo', nativeName: 'बड़ो', locale: 'brx-IN' },
+  { key: 'Dogri', nativeName: 'डोगरी', locale: 'doi-IN' },
+  { key: 'Gujarati', nativeName: 'ગુજરાતી', locale: 'gu-IN' },
+  { key: 'Hindi', nativeName: 'हिंदी', locale: 'hi-IN' },
+  { key: 'Kannada', nativeName: 'ಕನ್ನಡ', locale: 'kn-IN' },
+  { key: 'Kashmiri', nativeName: 'कॉशुर', locale: 'ks-IN' },
+  { key: 'Konkani', nativeName: 'कोंकणी', locale: 'kok-IN' },
+  { key: 'Maithili', nativeName: 'मैथिली', locale: 'mai-IN' },
+  { key: 'Malayalam', nativeName: 'മലയാളം', locale: 'ml-IN' },
+  { key: 'Manipuri', nativeName: 'মৈতৈলোন্', locale: 'mni-IN' },
+  { key: 'Marathi', nativeName: 'मराठी', locale: 'mr-IN' },
+  { key: 'Nepali', nativeName: 'नेपाली', locale: 'ne-IN' },
+  { key: 'Odia', nativeName: 'ଓଡ଼ିଆ', locale: 'or-IN' },
+  { key: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', locale: 'pa-IN' },
+  { key: 'Sanskrit', nativeName: 'संस्कृतम्', locale: 'sa-IN' },
+  { key: 'Santali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', locale: 'sat-IN' },
+  { key: 'Sindhi', nativeName: 'سنڌي', locale: 'sd-IN' },
+  { key: 'Tamil', nativeName: 'தமிழ்', locale: 'ta-IN' },
+  { key: 'Telugu', nativeName: 'తెలుగు', locale: 'te-IN' },
+  { key: 'Urdu', nativeName: 'اردو', locale: 'ur-IN' },
 ];
 
 const translations = {
@@ -103,6 +154,11 @@ const translations = {
       sendQuestion: 'Send question',
       thinking: 'Thinking about your field…',
       footnote: 'Weather guidance is a helper, not a replacement for local expert advice.',
+      voiceTitle: 'Your weather, out loud',
+      voiceDescription: 'Listen to a short briefing about today’s conditions and your field.',
+      playBriefing: 'Play weather briefing',
+      stopBriefing: 'Stop briefing',
+      askAndHear: 'Ask and hear the answer',
       sprayAnswer: 'Yes, today looks suitable for spraying: light wind and only an 18% chance of rain. Finish before 4 PM and avoid the hottest part of the afternoon.',
       rainAnswer: 'Wednesday has the best chance of rain at about 60%. You can plan field work for today and tomorrow, then check again Wednesday morning.',
       waterAnswer: 'Your cotton field can wait two more days. Water early in the morning, close to the roots, so less moisture is lost to the sun.',
@@ -144,10 +200,10 @@ const translations = {
       emptyTitle: 'Start the first conversation',
       emptyText: 'Share a question or tip from your field.',
     },
-    nav: { today: 'Today', ask: 'Ask', map: 'Map', farmers: 'Farmers' },
+    nav: { today: 'Today', ask: 'Ask', voice: 'Voice', map: 'Map', farmers: 'Farmers' },
     language: {
       title: 'Choose your language',
-      hint: 'WeatherGPT will use this language across the app.',
+      hint: 'Choose the app language. Voice playback supports all 22 Indian languages.',
       english: 'English',
       hindi: 'हिंदी',
       marathi: 'मराठी',
@@ -194,6 +250,11 @@ const translations = {
       sendQuestion: 'सवाल भेजें',
       thinking: 'आपके खेत के बारे में सोच रहा हूँ…',
       footnote: 'मौसम की सलाह मदद के लिए है, स्थानीय विशेषज्ञ की जगह नहीं।',
+      voiceTitle: 'मौसम की आवाज़',
+      voiceDescription: 'आज के मौसम और अपने खेत की छोटी सलाह सुनें।',
+      playBriefing: 'मौसम की सलाह सुनें',
+      stopBriefing: 'सलाह रोकें',
+      askAndHear: 'पूछें और जवाब सुनें',
       sprayAnswer: 'हाँ, आज दवा छिड़कने के लिए अच्छा दिन है। हवा हल्की है और बारिश की संभावना केवल 18% है। दोपहर 4 बजे से पहले काम पूरा करें।',
       rainAnswer: 'बुधवार को बारिश की संभावना सबसे अधिक, लगभग 60% है। आज और कल खेत का काम कर सकते हैं, फिर बुधवार सुबह दोबारा देखें।',
       waterAnswer: 'आपका कपास का खेत दो दिन और रुक सकता है। सुबह जल्दी जड़ों के पास पानी दें, इससे धूप में नमी कम नहीं होगी।',
@@ -235,10 +296,10 @@ const translations = {
       emptyTitle: 'पहली बातचीत शुरू करें',
       emptyText: 'अपने खेत का सवाल या सलाह साझा करें।',
     },
-    nav: { today: 'आज', ask: 'पूछें', map: 'नक्शा', farmers: 'किसान' },
+    nav: { today: 'आज', ask: 'पूछें', voice: 'आवाज़', map: 'नक्शा', farmers: 'किसान' },
     language: {
       title: 'भाषा चुनें',
-      hint: 'WeatherGPT पूरे ऐप में इसी भाषा का उपयोग करेगा।',
+      hint: 'ऐप की भाषा चुनें। आवाज़ में भारत की सभी 22 भाषाएँ उपलब्ध हैं।',
       english: 'English',
       hindi: 'हिंदी',
       marathi: 'मराठी',
@@ -285,6 +346,11 @@ const translations = {
       sendQuestion: 'प्रश्न पाठवा',
       thinking: 'तुमच्या शेताचा विचार करत आहे…',
       footnote: 'हवामान सल्ला मदतीसाठी आहे, स्थानिक तज्ज्ञांचा पर्याय नाही.',
+      voiceTitle: 'तुमचे हवामान, आवाजात',
+      voiceDescription: 'आजच्या हवामानाची आणि तुमच्या शेताची छोटी माहिती ऐका.',
+      playBriefing: 'हवामान सल्ला ऐका',
+      stopBriefing: 'सल्ला थांबवा',
+      askAndHear: 'विचारा आणि उत्तर ऐका',
       sprayAnswer: 'होय, आज फवारणीसाठी चांगला दिवस आहे. वारा हलका आहे आणि पावसाची शक्यता फक्त 18% आहे. दुपारी 4 पूर्वी काम पूर्ण करा.',
       rainAnswer: 'बुधवारी पावसाची शक्यता सुमारे 60% आहे. आज आणि उद्या शेतातील काम करा, नंतर बुधवारी सकाळी पुन्हा अंदाज पाहा.',
       waterAnswer: 'तुमच्या कापसाच्या शेताला आणखी दोन दिवस पाणी देण्याची गरज नाही. सकाळी लवकर मुळांजवळ पाणी द्या.',
@@ -326,19 +392,24 @@ const translations = {
       emptyTitle: 'पहिला संवाद सुरू करा',
       emptyText: 'तुमच्या शेतातील प्रश्न किंवा सल्ला शेअर करा.',
     },
-    nav: { today: 'आज', ask: 'विचारा', map: 'नकाशा', farmers: 'शेतकरी' },
+    nav: { today: 'आज', ask: 'विचारा', voice: 'आवाज', map: 'नकाशा', farmers: 'शेतकरी' },
     language: {
       title: 'भाषा निवडा',
-      hint: 'WeatherGPT संपूर्ण अॅपमध्ये ही भाषा वापरेल.',
+      hint: 'अॅपची भाषा निवडा. आवाजात भारतातील सर्व 22 भाषा उपलब्ध आहेत.',
       english: 'English',
       hindi: 'हिंदी',
       marathi: 'मराठी',
     },
     common: { back: 'आजवर परत', profile: 'भाषा निवडा' },
   },
-} satisfies Record<Language, object>;
+} satisfies Record<CoreLanguage, object>;
 
-type Copy = (typeof translations)[Language];
+type Copy = (typeof translations)[CoreLanguage];
+
+const getCopy = (language: Language): Copy => {
+  if (language === 'Hindi' || language === 'Marathi') return translations[language];
+  return translations.English;
+};
 
 const starterMessages = (copy: Copy): ChatMessage[] => [
   { id: 'welcome', role: 'assistant', message: copy.chat.welcome },
@@ -360,7 +431,10 @@ export default function HomeScreen() {
   const [selectedMapPoint, setSelectedMapPoint] = useState('Your farm');
   const [mapLayer, setMapLayer] = useState<'rain' | 'wind' | 'fields'>('rain');
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const copy = translations[language];
+  const copy = getCopy(language);
+  const selectedLanguage = languageCatalog.find((item) => item.key === language) ?? languageCatalog[0];
+  const [voiceQuestion, setVoiceQuestion] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('weathergpt-community-posts')
@@ -379,8 +453,13 @@ export default function HomeScreen() {
     }
   }, [isLoadingPosts, posts]);
 
+  useEffect(() => () => {
+    Speech.stop();
+  }, []);
+
   const activeTitle = useMemo(() => {
     if (screen === 'chat') return copy.chat.title;
+    if (screen === 'voice') return copy.chat.voiceTitle;
     if (screen === 'map') return copy.map.title;
     if (screen === 'community') return copy.community.title;
     return '';
@@ -415,10 +494,8 @@ export default function HomeScreen() {
 
   const toggleListening = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    setIsListening((current) => !current);
-    if (!isListening) {
-      setQuestion(copy.chat.placeholder);
-    }
+    setScreen('voice');
+    setIsListening(false);
   };
 
   const changeLanguage = (next: Language) => {
@@ -427,9 +504,33 @@ export default function HomeScreen() {
     setIsListening(false);
     setQuestion('');
     setChat((current) =>
-      current.length === 1 ? starterMessages(translations[next]) : current,
+      current.length === 1 ? starterMessages(getCopy(next)) : current,
     );
     Haptics.selectionAsync().catch(() => undefined);
+  };
+
+  const speakBriefing = () => {
+    if (isSpeaking) {
+      Speech.stop();
+      setIsSpeaking(false);
+      return;
+    }
+    setIsSpeaking(true);
+    Speech.speak(copy.chat.generalAnswer, {
+      language: selectedLanguage.locale,
+      rate: 0.88,
+      onDone: () => setIsSpeaking(false),
+      onStopped: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+  };
+
+  const askAndHear = () => {
+    const trimmed = voiceQuestion.trim();
+    if (!trimmed || isSending) return;
+    setVoiceQuestion('');
+    setScreen('chat');
+    sendQuestion(trimmed);
   };
 
   const toggleLike = (id: string) => {
@@ -501,6 +602,19 @@ export default function HomeScreen() {
             onSend={() => sendQuestion()}
             onQuickQuestion={sendQuestion}
             onListen={toggleListening}
+          />
+        ) : screen === 'voice' ? (
+          <VoiceView
+            colors={colors}
+            copy={copy}
+            language={language}
+            languageName={selectedLanguage.nativeName}
+            isSpeaking={isSpeaking}
+            question={voiceQuestion}
+            onQuestionChange={setVoiceQuestion}
+            onSpeak={speakBriefing}
+            onAsk={askAndHear}
+            onLanguage={() => setShowLanguagePicker(true)}
           />
         ) : screen === 'map' ? (
           <MapView
@@ -597,26 +711,25 @@ export default function HomeScreen() {
             <View style={styles.composerHandle} />
             <Text style={[styles.composerTitle, { color: colors.foreground }]}>{copy.language.title}</Text>
             <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>{copy.language.hint}</Text>
-            {([
-              ['English', copy.language.english],
-              ['Hindi', copy.language.hindi],
-              ['Marathi', copy.language.marathi],
-            ] as const).map(([value, label]) => (
-              <Pressable
-                key={value}
-                onPress={() => changeLanguage(value)}
-                style={({ pressed }) => [
-                  styles.languageOption,
-                  {
-                    backgroundColor: language === value ? colors.secondary : colors.muted,
-                    opacity: pressed ? 0.72 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.languageOptionText, { color: colors.foreground }]}>{label}</Text>
-                {language === value ? <Feather name="check" size={19} color={colors.primary} /> : null}
-              </Pressable>
-            ))}
+            <ScrollView style={styles.languageList} showsVerticalScrollIndicator={false}>
+              {languageCatalog.map(({ key, nativeName }) => (
+                <Pressable
+                  key={key}
+                  onPress={() => changeLanguage(key)}
+                  style={({ pressed }) => [
+                    styles.languageOption,
+                    {
+                      backgroundColor: language === key ? colors.secondary : colors.muted,
+                      opacity: pressed ? 0.72 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.languageOptionText, { color: colors.foreground }]}>{nativeName}</Text>
+                  <Text style={[styles.languageEnglishName, { color: colors.mutedForeground }]}>{key}</Text>
+                  {language === key ? <Feather name="check" size={19} color={colors.primary} /> : null}
+                </Pressable>
+              ))}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
@@ -871,6 +984,120 @@ function ChatView({
   );
 }
 
+function VoiceView({
+  colors,
+  copy,
+  languageName,
+  isSpeaking,
+  question,
+  onQuestionChange,
+  onSpeak,
+  onAsk,
+  onLanguage,
+}: {
+  colors: ReturnType<typeof useColors>;
+  copy: Copy;
+  language: Language;
+  languageName: string;
+  isSpeaking: boolean;
+  question: string;
+  onQuestionChange: (value: string) => void;
+  onSpeak: () => void;
+  onAsk: () => void;
+  onLanguage: () => void;
+}) {
+  return (
+    <>
+      <View style={styles.voiceIntro}>
+        <View style={[styles.voiceBadge, { backgroundColor: colors.accent }]}>
+          <Feather name="volume-2" size={16} color={colors.accentForeground} />
+          <Text style={[styles.voiceBadgeText, { color: colors.accentForeground }]}>VOICE MODULE</Text>
+        </View>
+        <Text style={[styles.voiceTitle, { color: colors.foreground }]}>{copy.chat.voiceTitle}</Text>
+        <Text style={[styles.voiceDescription, { color: colors.mutedForeground }]}>
+          {copy.chat.voiceDescription}
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={onLanguage}
+        accessibilityLabel={copy.language.title}
+        style={({ pressed }) => [
+          styles.voiceLanguage,
+          { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.76 : 1 },
+        ]}
+      >
+        <View style={[styles.voiceLanguageIcon, { backgroundColor: colors.secondary }]}>
+          <Feather name="globe" size={17} color={colors.primary} />
+        </View>
+        <View style={styles.voiceLanguageCopy}>
+          <Text style={[styles.voiceLanguageLabel, { color: colors.mutedForeground }]}>VOICE LANGUAGE</Text>
+          <Text style={[styles.voiceLanguageName, { color: colors.foreground }]}>{languageName}</Text>
+        </View>
+        <Feather name="chevron-down" size={18} color={colors.mutedForeground} />
+      </Pressable>
+
+      <View style={[styles.voiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.voiceOrb, { backgroundColor: isSpeaking ? colors.coral : colors.secondary }]}>
+          <View style={[styles.voiceOrbInner, { backgroundColor: colors.card }]}>
+            <Feather
+              name={isSpeaking ? 'square' : 'volume-2'}
+              size={30}
+              color={isSpeaking ? colors.coral : colors.primary}
+            />
+          </View>
+        </View>
+        <Text style={[styles.voiceCardTitle, { color: colors.foreground }]}>
+          {isSpeaking ? copy.chat.stopBriefing : copy.chat.playBriefing}
+        </Text>
+        <Text style={[styles.voiceCardHint, { color: colors.mutedForeground }]}>
+          {isSpeaking ? copy.chat.listening : languageName}
+        </Text>
+        <Pressable
+          onPress={onSpeak}
+          accessibilityLabel={isSpeaking ? copy.chat.stopBriefing : copy.chat.playBriefing}
+          style={({ pressed }) => [
+            styles.voicePlayButton,
+            { backgroundColor: isSpeaking ? colors.coral : colors.primary, opacity: pressed ? 0.8 : 1 },
+          ]}
+        >
+          <Feather name={isSpeaking ? 'square' : 'play'} size={17} color={colors.primaryForeground} />
+          <Text style={[styles.voicePlayText, { color: colors.primaryForeground }]}>
+            {isSpeaking ? copy.chat.stopBriefing : copy.chat.playBriefing}
+          </Text>
+        </Pressable>
+      </View>
+
+      <Text style={[styles.voiceAskLabel, { color: colors.foreground }]}>{copy.chat.askAndHear}</Text>
+      <View style={[styles.voiceAskBox, { backgroundColor: colors.card, borderColor: colors.input }]}>
+        <TextInput
+          value={question}
+          onChangeText={onQuestionChange}
+          placeholder={copy.chat.placeholder}
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.voiceInput, { color: colors.foreground }]}
+          accessibilityLabel={copy.chat.placeholder}
+          returnKeyType="send"
+          onSubmitEditing={onAsk}
+        />
+        <Pressable
+          onPress={onAsk}
+          accessibilityLabel={copy.chat.sendQuestion}
+          style={({ pressed }) => [
+            styles.sendButton,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Feather name="arrow-up" size={18} color={colors.primaryForeground} />
+        </Pressable>
+      </View>
+      <Text style={[styles.voiceNote, { color: colors.mutedForeground }]}>
+        Voice playback uses the selected language when your phone has a matching voice installed.
+      </Text>
+    </>
+  );
+}
+
 function MapView({
   colors,
   copy,
@@ -1066,6 +1293,7 @@ function BottomNav({
   const items: { id: Screen; label: string; icon: IconName }[] = [
     { id: 'home', label: copy.nav.today, icon: 'sun' },
     { id: 'chat', label: copy.nav.ask, icon: 'message-circle' },
+    { id: 'voice', label: copy.nav.voice, icon: 'volume-2' },
     { id: 'map', label: copy.nav.map, icon: 'map' },
     { id: 'community', label: copy.nav.farmers, icon: 'users' },
   ];
@@ -1299,6 +1527,27 @@ const styles = StyleSheet.create({
   mapDetailPlace: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   mapDetailText: { fontFamily: 'Inter_400Regular', fontSize: 12 },
   mapUpdated: { textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 12 },
+  voiceIntro: { marginHorizontal: 22, marginTop: 69 },
+  voiceBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
+  voiceBadgeText: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1 },
+  voiceTitle: { fontFamily: 'Inter_700Bold', fontSize: 27, letterSpacing: -0.6, marginTop: 15 },
+  voiceDescription: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19, marginTop: 6, maxWidth: 300 },
+  voiceLanguage: { marginHorizontal: 18, marginTop: 19, padding: 11, borderRadius: 17, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  voiceLanguageIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  voiceLanguageCopy: { flex: 1, gap: 3 },
+  voiceLanguageLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1 },
+  voiceLanguageName: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  voiceCard: { marginHorizontal: 18, marginTop: 18, borderRadius: 23, borderWidth: 1, alignItems: 'center', padding: 22 },
+  voiceOrb: { width: 118, height: 118, borderRadius: 59, alignItems: 'center', justifyContent: 'center' },
+  voiceOrbInner: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' },
+  voiceCardTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, marginTop: 17 },
+  voiceCardHint: { fontFamily: 'Inter_400Regular', fontSize: 12, marginTop: 4 },
+  voicePlayButton: { width: '100%', minHeight: 48, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 18 },
+  voicePlayText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  voiceAskLabel: { fontFamily: 'Inter_700Bold', fontSize: 15, marginHorizontal: 22, marginTop: 25, marginBottom: 10 },
+  voiceAskBox: { marginHorizontal: 18, borderWidth: 1, borderRadius: 18, padding: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  voiceInput: { flex: 1, minHeight: 40, paddingHorizontal: 10, fontFamily: 'Inter_400Regular', fontSize: 14 },
+  voiceNote: { textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 12, paddingHorizontal: 24 },
   communityHeader: { marginHorizontal: 22, marginTop: 69, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   communityLead: { fontFamily: 'Inter_700Bold', fontSize: 20, letterSpacing: -0.3 },
   communitySub: { fontFamily: 'Inter_400Regular', fontSize: 13, marginTop: 4 },
@@ -1333,8 +1582,10 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,49,38,0.24)' },
   languageOverlay: { flex: 1, alignItems: 'flex-end', justifyContent: 'flex-start', paddingTop: 78, paddingHorizontal: 18, backgroundColor: 'rgba(23,49,38,0.18)' },
   languageSheet: { width: '100%', maxWidth: 390, alignSelf: 'center', borderRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18 },
-  languageOption: { minHeight: 51, borderRadius: 14, marginTop: 9, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  languageList: { maxHeight: 470, flexGrow: 0, marginTop: 3 },
+  languageOption: { minHeight: 51, borderRadius: 14, marginTop: 9, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 9 },
   languageOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  languageEnglishName: { fontFamily: 'Inter_400Regular', fontSize: 11, flex: 1 },
   composer: { borderTopLeftRadius: 27, borderTopRightRadius: 27, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16 },
   composerHandle: { width: 38, height: 4, backgroundColor: '#DCE9D8', borderRadius: 2, alignSelf: 'center', marginBottom: 17 },
   composerTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 },

@@ -1,0 +1,1 @@
+- [Expo voice dependencies](expo-speech-install.md) — install speech modules against the target mobile package, not the monorepo root.
