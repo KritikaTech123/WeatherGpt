@@ -1840,7 +1840,8 @@ function MapView({
 }) {
   const [selectedState, setSelectedState] = useState('Maharashtra');
   const [selectedDistrict, setSelectedDistrict] = useState('Nashik');
-  const [expandedState, setExpandedState] = useState<string | null>('Maharashtra');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerLevel, setPickerLevel] = useState<'state' | 'district' | 'city'>('state');
   const states = allIndiaPlaces.map((place) => place.state);
   const selectedBranch = allIndiaPlaces.find((place) => place.state === selectedState) ?? allIndiaPlaces[0];
   const districts = Object.keys(selectedBranch.districts);
@@ -1858,17 +1859,21 @@ function MapView({
     setSelectedState(state);
     setSelectedDistrict(district);
     onSelectPoint(city);
+    setPickerLevel('district');
     Haptics.selectionAsync().catch(() => undefined);
   };
 
   const chooseDistrict = (district: string) => {
     setSelectedDistrict(district);
     onSelectPoint((selectedBranch.districts[district] ?? [selectedBranch.state])[0]);
+    setPickerLevel('city');
     Haptics.selectionAsync().catch(() => undefined);
   };
 
   const chooseCity = (city: string) => {
     onSelectPoint(city);
+    setPickerOpen(false);
+    setPickerLevel('state');
     Haptics.selectionAsync().catch(() => undefined);
   };
 
@@ -1884,39 +1889,90 @@ function MapView({
           <Text style={[styles.simulatorNoticeText, { color: colors.mutedForeground }]}>{copy.map.simulatorText}</Text>
         </View>
       </View>
-      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>{copy.map.stateStep} · tap arrows to browse</Text>
-      <View style={styles.mapTree}>
-        {states.map((state) => (
-          <View key={state}>
-            <Pressable onPress={() => { setExpandedState(expandedState === state ? null : state); chooseState(state); }} style={[styles.treeRow, { borderColor: colors.border, backgroundColor: selectedState === state ? colors.secondary : colors.card }]}>
-              <Feather name={expandedState === state ? 'chevron-down' : 'chevron-right'} size={16} color={colors.primary} />
-              <Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(state, language)}</Text>
-            </Pressable>
+      <View style={[styles.mapPickerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Pressable
+          onPress={() => {
+            setPickerOpen((open) => !open);
+            setPickerLevel('state');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`${localizePlace(selectedCity, language)}, ${localizePlace(selectedDistrict, language)}, ${localizePlace(selectedState, language)}`}
+          style={({ pressed }) => [styles.mapPickerSummary, { opacity: pressed ? 0.72 : 1 }]}
+        >
+          <View style={[styles.mapPickerIcon, { backgroundColor: colors.secondary }]}>
+            <Feather name="map-pin" size={17} color={colors.primary} />
           </View>
-        ))}
-      </View>
-      <Text style={[styles.mapPickerLabel, { color: colors.foreground }]}>{copy.map.districtStep}</Text>
-      <View style={styles.mapTree}>
-        {districts.map((district) => (
-          <View key={district}>
-            <Pressable onPress={() => { chooseDistrict(district); setExpandedState(expandedState === `district:${district}` ? selectedState : `district:${district}`); }} style={[styles.treeRow, { borderColor: colors.border, backgroundColor: selectedDistrict === district ? colors.secondary : colors.card }]}>
-              <Feather name={expandedState === `district:${district}` ? 'chevron-down' : 'chevron-right'} size={16} color={colors.primary} />
-              <Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(district, language)}</Text>
-            </Pressable>
-            {expandedState === `district:${district}` ? (selectedBranch.districts[district] ?? []).map((city) => (
-              <Pressable key={city} onPress={() => chooseCity(city)} style={[styles.cityRow, { marginLeft: 22, backgroundColor: selectedCity === city ? colors.secondary : colors.muted }]}>
-                <Feather name="map-pin" size={14} color={colors.primary} /><Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(city, language)}</Text>{selectedCity === city ? <Feather name="check" size={16} color={colors.primary} /> : null}
-              </Pressable>
-            )) : null}
+          <View style={styles.mapPickerCopy}>
+            <Text style={[styles.mapPickerTitle, { color: colors.foreground }]}>{localizePlace(selectedCity, language)}</Text>
+            <Text style={[styles.mapPickerSubtitle, { color: colors.mutedForeground }]}>
+              {localizePlace(selectedDistrict, language)} · {localizePlace(selectedState, language)}
+            </Text>
           </View>
-        ))}
+          <Feather name={pickerOpen ? 'chevron-up' : 'chevron-down'} size={19} color={colors.primary} />
+        </Pressable>
+
+        {pickerOpen ? (
+          <>
+            <View style={[styles.mapPickerLevels, { borderTopColor: colors.border }]}>
+              {([
+                ['state', copy.map.stateStep],
+                ['district', copy.map.districtStep],
+                ['city', copy.map.cityStep],
+              ] as const).map(([level, label]) => (
+                <Pressable
+                  key={level}
+                  onPress={() => setPickerLevel(level)}
+                  style={[
+                    styles.mapPickerLevel,
+                    { backgroundColor: pickerLevel === level ? colors.secondary : colors.muted },
+                  ]}
+                >
+                  <Text style={[styles.mapPickerLevelText, { color: pickerLevel === level ? colors.primary : colors.mutedForeground }]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={[styles.mapTree, { backgroundColor: colors.muted }]}>
+              {pickerLevel === 'state'
+                ? states.map((state) => (
+                  <Pressable
+                    key={state}
+                    onPress={() => chooseState(state)}
+                    style={[styles.treeRow, { borderColor: colors.border, backgroundColor: selectedState === state ? colors.secondary : colors.muted }]}
+                  >
+                    <Feather name="map" size={15} color={colors.primary} />
+                    <Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(state, language)}</Text>
+                    {selectedState === state ? <Feather name="check" size={16} color={colors.primary} /> : null}
+                  </Pressable>
+                ))
+                : pickerLevel === 'district'
+                  ? districts.map((district) => (
+                    <Pressable
+                      key={district}
+                      onPress={() => chooseDistrict(district)}
+                      style={[styles.treeRow, { borderColor: colors.border, backgroundColor: selectedDistrict === district ? colors.secondary : colors.muted }]}
+                    >
+                      <Feather name="grid" size={15} color={colors.primary} />
+                      <Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(district, language)}</Text>
+                      {selectedDistrict === district ? <Feather name="check" size={16} color={colors.primary} /> : null}
+                    </Pressable>
+                  ))
+                  : cities.map((city) => (
+                    <Pressable
+                      key={city}
+                      onPress={() => chooseCity(city)}
+                      style={[styles.cityRow, { marginHorizontal: 8, backgroundColor: selectedCity === city ? colors.secondary : colors.muted }]}
+                    >
+                      <Feather name="map-pin" size={14} color={colors.primary} />
+                      <Text style={[styles.treeText, { color: colors.foreground }]}>{localizePlace(city, language)}</Text>
+                      {selectedCity === city ? <Feather name="check" size={16} color={colors.primary} /> : null}
+                    </Pressable>
+                  ))}
+            </View>
+          </>
+        ) : null}
       </View>
-      <Text style={[styles.mapPickerLabel, styles.cityPickerLabel, { color: colors.foreground }]}>{copy.map.cityStep}</Text>
-      <Text style={[styles.mapHint, { color: colors.mutedForeground }]}>
-        {expandedState?.startsWith('district:')
-          ? 'Choose a city from the expanded district above.'
-          : 'Open a district with the arrow to reveal its cities.'}
-      </Text>
       <View style={[styles.mapCard, { backgroundColor: colors.mapWater, borderColor: colors.border, padding: 0, overflow: 'hidden' }]}>
         <Svg viewBox={`${mapBounds.minX} ${mapBounds.minY} ${mapBounds.width} ${mapBounds.height}`} width="100%" height="100%" style={StyleSheet.absoluteFill}>
           {Object.entries(statePaths).map(([name, d]) => {
@@ -2658,6 +2714,15 @@ const styles = StyleSheet.create({
   districtChoice: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   districtChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   mapCard: { marginHorizontal: 18, aspectRatio: 29.229 / 33.204, borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
+  mapPickerCard: { marginHorizontal: 18, marginTop: 16, borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
+  mapPickerSummary: { minHeight: 72, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  mapPickerIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  mapPickerCopy: { flex: 1, gap: 3 },
+  mapPickerTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  mapPickerSubtitle: { fontFamily: 'Inter_400Regular', fontSize: 11 },
+  mapPickerLevels: { borderTopWidth: 1, padding: 8, flexDirection: 'row', gap: 6 },
+  mapPickerLevel: { flex: 1, minHeight: 35, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
+  mapPickerLevelText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
   stateHotspot: { position: 'absolute', width: 38, height: 30, marginLeft: -19, marginTop: -15, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   stateHotspotText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.3 },
   mapPoint: { position: 'absolute', alignItems: 'center', transform: [{ translateX: -20 }, { translateY: -17.5 }] },
