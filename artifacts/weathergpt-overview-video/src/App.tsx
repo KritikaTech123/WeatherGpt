@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-const BASE = import.meta.env.BASE_URL;
-
 const scenes = [
   { id: "opening", label: "An ordinary question", duration: 4800 },
   { id: "map", label: "Everywhere in India", duration: 4700 },
