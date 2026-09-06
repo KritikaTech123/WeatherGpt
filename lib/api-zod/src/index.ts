@@ -1,2 +1,8 @@
 export * from "./generated/api";
-export * from "./generated/types";
+export type {
+  HealthStatus,
+  SpeechStatus,
+  TranscriptionResponse,
+  TranslationRequest,
+  TranslationResponse,
+} from "./generated/types";

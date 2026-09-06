@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
+import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,10 +26,12 @@ import { KeyboardAvoidingView, KeyboardAwareScrollView } from 'react-native-keyb
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { statePaths, mapBounds } from '@/assets/india-states-paths';
+import { getSpeechStatus, transcribeSpeech, translateText } from '@workspace/api-client-react';
 
 import * as Location from 'expo-location';
 
 type Screen = 'home' | 'chat' | 'voice' | 'map' | 'community' | 'profile';
+type RecordingContext = 'ask' | 'voice' | 'post';
 type IconName = React.ComponentProps<typeof Feather>['name'];
 type CoreLanguage = 'English' | 'Hindi' | 'Marathi';
 type Language =
@@ -94,6 +97,12 @@ type SimulatedCityWeather = {
   windDirection: string;
   humidity: number;
   advice: string;
+};
+
+type SpeechServiceStatus = {
+  speechToTextAvailable: boolean;
+  translationAvailable: boolean;
+  message: string;
 };
 
 const indiaWeatherSimulator: Record<string, Record<string, Record<string, SimulatedCityWeather>>> = {
@@ -699,13 +708,22 @@ const starterMessages = (copy: Copy): ChatMessage[] => [
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [screen, setScreen] = useState<Screen>('home');
   const [language, setLanguage] = useState<Language>('English');
   const [posts, setPosts] = useState<CommunityPost[]>(initialPosts);
   const [chat, setChat] = useState<ChatMessage[]>(starterMessages(translations.English));
   const [question, setQuestion] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [recordingContext, setRecordingContext] = useState<RecordingContext | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [speechStatus, setSpeechStatus] = useState<SpeechServiceStatus>({
+    speechToTextAvailable: false,
+    translationAvailable: false,
+    message: 'Checking online speech service…',
+  });
   const [showPostComposer, setShowPostComposer] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [newPost, setNewPost] = useState('');
@@ -725,7 +743,6 @@ export default function HomeScreen() {
   const [placeSelection, setPlaceSelection] = useState({ state: 'Maharashtra', district: 'Nashik', city: 'Nashik' });
   const [expandedPlace, setExpandedPlace] = useState<string | null>('Maharashtra');
   const [photoUri, setPhotoUri] = useState<string | undefined>();
-  const [isVoicePostListening, setIsVoicePostListening] = useState(false);
   const [voiceAnswer, setVoiceAnswer] = useState('');
   const [farmTasks, setFarmTasks] = useState<FarmTask[]>(defaultFarmTasks);
   const [farmProfile] = useState<FarmProfile>({
@@ -736,6 +753,18 @@ export default function HomeScreen() {
   });
   const postNeedsKindness = hasDisrespectfulLanguage(newPost);
   const selectedWeather = getWeatherForLocation(placeSelection);
+
+  useEffect(() => {
+    getSpeechStatus()
+      .then((status) => setSpeechStatus(status))
+      .catch(() =>
+        setSpeechStatus({
+          speechToTextAvailable: false,
+          translationAvailable: false,
+          message: 'Online speech and translation are unavailable. You can still type and use offline weather guidance.',
+        }),
+      );
+  }, []);
 
   const loadCurrentLocation = async () => {
     const position =
@@ -846,38 +875,119 @@ export default function HomeScreen() {
     setScreen(next);
   };
 
-  const sendQuestion = (value = question) => {
+  const requestTranslation = async (text: string, target: Language) => {
+    if (target === 'English') return text;
+    if (!speechStatus.translationAvailable) {
+      throw new Error(speechStatus.message);
+    }
+    const result = await translateText({
+      text,
+      targetLanguage: target,
+      sourceLanguage: 'English',
+    });
+    return result.translation;
+  };
+
+  const translateContent = async (text: string, target: Language) => {
+    try {
+      return await requestTranslation(text, target);
+    } catch {
+      setVoiceError('Translation is unavailable right now. The original answer is still shown safely.');
+      return text;
+    }
+  };
+
+  const sendQuestion = async (value = question) => {
     const trimmed = value.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed || isSending) return undefined;
     setQuestion('');
     setIsSending(true);
     setChat((current) => [
       ...current,
       { id: `${Date.now()}-user`, role: 'user', message: trimmed },
     ]);
-    setTimeout(() => {
-      setChat((current) => [
-        ...current,
-        {
-          id: `${Date.now()}-assistant`,
-          role: 'assistant',
-          message: answerFor(trimmed, placeSelection, language),
-        },
-      ]);
-      setIsSending(false);
-    }, 550);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const answer = await translateContent(answerFor(trimmed, placeSelection, 'English'), language);
+    setChat((current) => [
+      ...current,
+      {
+        id: `${Date.now()}-assistant`,
+        role: 'assistant',
+        message: answer,
+      },
+    ]);
+    setIsSending(false);
+    return answer;
   };
 
-  const toggleListening = () => {
+  const stopRecording = async () => {
+    const context = recordingContext;
+    setIsRecording(false);
+    setRecordingContext(null);
+    setIsTranscribing(true);
+    try {
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+      if (!uri) throw new Error('No recording file was created.');
+      const audioBlob = await fetch(uri).then((response) => response.blob());
+      const result = await transcribeSpeech({
+        audio: audioBlob,
+        language,
+      });
+      if (context === 'ask') setQuestion(result.transcript);
+      if (context === 'voice') setVoiceQuestion(result.transcript);
+      if (context === 'post') setNewPost(result.transcript);
+      setVoiceError(null);
+    } catch {
+      setVoiceError('I could not transcribe that recording. Please try again or type your question.');
+    } finally {
+      setIsTranscribing(false);
+      await setAudioModeAsync({ allowsRecording: false }).catch(() => undefined);
+    }
+  };
+
+  const startRecording = async (context: RecordingContext) => {
+    if (!speechStatus.speechToTextAvailable) {
+      setVoiceError(speechStatus.message);
+      return;
+    }
+    try {
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        setVoiceError('Microphone access is needed for voice questions. You can still type your question.');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setVoiceError(null);
+      setRecordingContext(context);
+      setIsRecording(true);
+    } catch {
+      setVoiceError('Microphone recording is unavailable on this device. You can still type your question.');
+    }
+  };
+
+  const toggleRecording = (context: RecordingContext) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    setScreen('voice');
-    setIsListening(false);
+    if (isRecording) {
+      stopRecording().catch(() => {
+        setIsRecording(false);
+        setIsTranscribing(false);
+      });
+      return;
+    }
+    startRecording(context).catch(() => {
+      setVoiceError('Microphone recording is unavailable. You can still type your question.');
+    });
   };
 
   const changeLanguage = (next: Language) => {
     setLanguage(next);
     setShowLanguagePicker(false);
-    setIsListening(false);
+    if (isRecording) {
+      stopRecording().catch(() => undefined);
+    }
     setQuestion('');
     setChat((current) =>
       current.length === 1 ? starterMessages(getCopy(next)) : current,
@@ -906,17 +1016,18 @@ export default function HomeScreen() {
   const askAndHear = () => {
     const trimmed = voiceQuestion.trim();
     if (!trimmed || isSending) return;
-    const answer = answerFor(trimmed, placeSelection, language);
-    setVoiceAnswer(answer);
-    setIsSpeaking(true);
-    Speech.speak(answer, {
-      language: selectedLanguage.locale,
-      rate: 0.88,
-      onDone: () => setIsSpeaking(false),
-      onStopped: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
+    sendQuestion(trimmed).then((answer) => {
+      if (!answer) return;
+      setVoiceAnswer(answer);
+      setIsSpeaking(true);
+      Speech.speak(answer, {
+        language: selectedLanguage.locale,
+        rate: 0.88,
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
+      });
     });
-    sendQuestion(trimmed);
   };
 
   const addFarmTask = (label: string) => {
@@ -971,7 +1082,6 @@ export default function HomeScreen() {
     setPosts((current) => [post, ...current]);
     setNewPost('');
     setPhotoUri(undefined);
-    setIsVoicePostListening(false);
     setShowPostComposer(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
       () => undefined,
@@ -992,6 +1102,12 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {voiceError ? (
+          <View style={[styles.voiceErrorBox, { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder }]}>
+            <Feather name="info" size={16} color={colors.accent} />
+            <Text style={[styles.voiceErrorText, { color: colors.foreground }]}>{voiceError}</Text>
+          </View>
+        ) : null}
         {screen === 'home' ? (
           <HomeView
             colors={colors}
@@ -1014,11 +1130,13 @@ export default function HomeScreen() {
             messages={chat}
             question={question}
             isSending={isSending}
-            isListening={isListening}
+            isListening={isRecording && recordingContext === 'ask'}
+            isTranscribing={isTranscribing && recordingContext === 'ask'}
             onQuestionChange={setQuestion}
             onSend={() => sendQuestion()}
             onQuickQuestion={sendQuestion}
-            onListen={toggleListening}
+            onListen={() => toggleRecording('ask')}
+            onTranslate={requestTranslation}
           />
         ) : screen === 'voice' ? (
           <VoiceView
@@ -1027,12 +1145,14 @@ export default function HomeScreen() {
             language={language}
             languageName={selectedLanguage.nativeName}
             isSpeaking={isSpeaking}
+            isListening={isRecording && recordingContext === 'voice'}
+            isTranscribing={isTranscribing && recordingContext === 'voice'}
             question={voiceQuestion}
             answer={voiceAnswer}
             onQuestionChange={setVoiceQuestion}
             onSpeak={speakBriefing}
             onAsk={askAndHear}
-            onVoiceInput={toggleListening}
+            onVoiceInput={() => toggleRecording('voice')}
             onLanguage={() => setShowLanguagePicker(true)}
           />
         ) : screen === 'map' ? (
@@ -1053,6 +1173,7 @@ export default function HomeScreen() {
             isLoading={isLoadingPosts}
             onLike={toggleLike}
             onAdd={() => setShowPostComposer(true)}
+            onTranslate={requestTranslation}
           />
         ) : (
           <ProfileView
@@ -1129,12 +1250,12 @@ export default function HomeScreen() {
                 <Text style={[styles.toolButtonText, { color: colors.primary }]}>Add photo</Text>
               </Pressable>
               <Pressable
-                onPress={() => setIsVoicePostListening((value) => !value)}
-                style={[styles.toolButton, { backgroundColor: isVoicePostListening ? colors.coral : colors.secondary }]}
+                onPress={() => toggleRecording('post')}
+                style={[styles.toolButton, { backgroundColor: isRecording && recordingContext === 'post' ? colors.coral : colors.secondary }]}
               >
-                <Feather name={isVoicePostListening ? 'square' : 'mic'} size={17} color={isVoicePostListening ? colors.primaryForeground : colors.primary} />
-                <Text style={[styles.toolButtonText, { color: isVoicePostListening ? colors.primaryForeground : colors.primary }]}>
-                  {isVoicePostListening ? 'Listening…' : 'Voice input'}
+                <Feather name={isRecording && recordingContext === 'post' ? 'square' : 'mic'} size={17} color={isRecording && recordingContext === 'post' ? colors.primaryForeground : colors.primary} />
+                <Text style={[styles.toolButtonText, { color: isRecording && recordingContext === 'post' ? colors.primaryForeground : colors.primary }]}>
+                  {isTranscribing && recordingContext === 'post' ? 'Transcribing…' : isRecording && recordingContext === 'post' ? 'Stop recording' : 'Voice input'}
                 </Text>
               </Pressable>
             </View>
@@ -1450,10 +1571,12 @@ function ChatView({
   question,
   isSending,
   isListening,
+  isTranscribing,
   onQuestionChange,
   onSend,
   onQuickQuestion,
   onListen,
+  onTranslate,
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
@@ -1461,17 +1584,42 @@ function ChatView({
   question: string;
   isSending: boolean;
   isListening: boolean;
+  isTranscribing: boolean;
   onQuestionChange: (value: string) => void;
   onSend: () => void;
   onQuickQuestion: (value: string) => void;
   onListen: () => void;
+  onTranslate: (message: string, target: Language) => Promise<string>;
 }) {
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState<Language>('Hindi');
+  const [translationText, setTranslationText] = useState<string | null>(null);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [translationFallback, setTranslationFallback] = useState(false);
+  const [translationMessage, setTranslationMessage] = useState<string | null>(null);
 
   const toggleTranslate = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    setTranslatingId(current => current === id ? null : id);
+    setTranslatingId(current => {
+      const next = current === id ? null : id;
+      if (next !== id) setTranslationText(null);
+      return next;
+    });
+  };
+
+  const loadTranslation = async (message: string, target: Language) => {
+    setTranslationLoading(true);
+    setTranslationMessage(null);
+    try {
+      setTranslationText(await onTranslate(message, target));
+      setTranslationFallback(false);
+    } catch (error) {
+      setTranslationText(localTranslationPreview(message, target));
+      setTranslationFallback(true);
+      setTranslationMessage(error instanceof Error ? error.message : 'Online translation is unavailable.');
+    } finally {
+      setTranslationLoading(false);
+    }
   };
   return (
     <>
@@ -1522,12 +1670,17 @@ function ChatView({
               </Pressable>
               {translatingId === item.id && (
                 <View style={[styles.chatTranslationBox, { backgroundColor: colors.secondary }]}>
-                  <Text style={[styles.translationLabel, { color: colors.leafDark }]}>OFFLINE TRANSLATION DEMO</Text>
+                  <Text style={[styles.translationLabel, { color: colors.leafDark }]}>
+                    {translationFallback ? 'OFFLINE FALLBACK' : 'ONLINE TRANSLATION'}
+                  </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.translationLanguageRow}>
                     {languageCatalog.map((languageItem) => (
                       <Pressable
                         key={languageItem.key}
-                        onPress={() => setTargetLanguage(languageItem.key)}
+                        onPress={() => {
+                          setTargetLanguage(languageItem.key);
+                          loadTranslation(item.message, languageItem.key).catch(() => undefined);
+                        }}
                         style={[
                           styles.translationLanguageChip,
                           { backgroundColor: targetLanguage === languageItem.key ? colors.primary : colors.card },
@@ -1539,9 +1692,13 @@ function ChatView({
                       </Pressable>
                     ))}
                   </ScrollView>
+                  {translationLoading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
                   <Text style={[styles.chatTranslationText, { color: colors.leafDark }]}>
-                    {localTranslationPreview(item.message, targetLanguage)}
+                    {translationText ?? 'Choose a language for a live translation.'}
                   </Text>
+                  {translationMessage ? (
+                    <Text style={[styles.translationFallbackText, { color: colors.mutedForeground }]}>{translationMessage}</Text>
+                  ) : null}
                 </View>
               )}
             </View>
@@ -1576,7 +1733,7 @@ function ChatView({
         <TextInput
           value={question}
           onChangeText={onQuestionChange}
-          placeholder={isListening ? copy.chat.listening : copy.chat.placeholder}
+           placeholder={isTranscribing ? 'Transcribing…' : isListening ? copy.chat.listening : copy.chat.placeholder}
           placeholderTextColor={colors.mutedForeground}
           style={[styles.chatInput, { color: colors.foreground }]}
           returnKeyType="send"
@@ -1585,13 +1742,13 @@ function ChatView({
         />
         <Pressable
           onPress={onListen}
-          accessibilityLabel={isListening ? copy.chat.stopListening : copy.chat.askByVoice}
+           accessibilityLabel={isTranscribing ? 'Transcribing recording' : isListening ? copy.chat.stopListening : copy.chat.askByVoice}
           style={({ pressed }) => [
             styles.micButton,
-            { backgroundColor: isListening ? colors.coral : colors.secondary, opacity: pressed ? 0.75 : 1 },
+             { backgroundColor: isListening ? colors.coral : colors.secondary, opacity: pressed || isTranscribing ? 0.55 : 1 },
           ]}
         >
-          <Feather name={isListening ? 'square' : 'mic'} size={18} color={isListening ? colors.primaryForeground : colors.primary} />
+           <Feather name={isListening ? 'square' : 'mic'} size={18} color={isListening ? colors.primaryForeground : colors.primary} />
         </Pressable>
         <Pressable
           onPress={onSend}
@@ -1616,6 +1773,8 @@ function VoiceView({
   copy,
   languageName,
   isSpeaking,
+  isListening,
+  isTranscribing,
   question,
   answer,
   onQuestionChange,
@@ -1629,6 +1788,8 @@ function VoiceView({
   language: Language;
   languageName: string;
   isSpeaking: boolean;
+  isListening: boolean;
+  isTranscribing: boolean;
   question: string;
   answer: string;
   onQuestionChange: (value: string) => void;
@@ -1637,7 +1798,7 @@ function VoiceView({
   onVoiceInput: () => void;
   onLanguage: () => void;
 }) {
-  const voiceState = isSpeaking ? 'speaking' : question && !answer ? 'thinking' : 'ready';
+  const voiceState = isSpeaking ? 'speaking' : isListening ? 'listening' : isTranscribing ? 'thinking' : question ? 'ready' : 'ready';
   return (
     <>
       <View style={styles.voiceIntro}>
@@ -1670,20 +1831,20 @@ function VoiceView({
       </Pressable>
 
       <View style={[styles.voiceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={[styles.voiceOrb, { backgroundColor: isSpeaking ? colors.coral : voiceState === 'thinking' ? colors.warmBorder : colors.secondary }]}>
+        <View style={[styles.voiceOrb, { backgroundColor: isSpeaking ? colors.coral : isListening ? colors.coral : voiceState === 'thinking' ? colors.warmBorder : colors.secondary }]}>
           <View style={[styles.voiceOrbInner, { backgroundColor: colors.card }]}>
             <Feather
-              name={isSpeaking ? 'volume-2' : voiceState === 'thinking' ? 'loader' : 'mic'}
+              name={isSpeaking ? 'volume-2' : isListening ? 'square' : voiceState === 'thinking' ? 'loader' : 'mic'}
               size={30}
-              color={isSpeaking ? colors.coral : colors.primary}
+              color={isSpeaking || isListening ? colors.coral : colors.primary}
             />
           </View>
         </View>
         <Text style={[styles.voiceCardTitle, { color: colors.foreground }]}>
-          {isSpeaking ? 'Speaking' : voiceState === 'thinking' ? 'Thinking' : 'Ready to talk'}
+          {isSpeaking ? 'Speaking' : isListening ? 'Recording' : isTranscribing ? 'Transcribing' : voiceState === 'thinking' ? 'Thinking' : 'Ready to talk'}
         </Text>
         <Text style={[styles.voiceCardHint, { color: colors.mutedForeground }]}>
-          {isSpeaking ? 'Tap to stop' : `Ask in ${languageName}`}
+          {isSpeaking ? 'Tap to stop' : isListening ? 'Tap the microphone below to stop' : isTranscribing ? 'Your transcript will be editable in a moment' : `Ask in ${languageName}`}
         </Text>
         <Pressable
           onPress={onSpeak}
@@ -1720,13 +1881,13 @@ function VoiceView({
         />
         <Pressable
           onPress={onVoiceInput}
-          accessibilityLabel={copy.chat.askByVoice}
+          accessibilityLabel={isListening ? copy.chat.stopListening : copy.chat.askByVoice}
           style={({ pressed }) => [
             styles.micButton,
-            { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+            { backgroundColor: isListening ? colors.coral : colors.secondary, opacity: pressed || isTranscribing ? 0.55 : 1 },
           ]}
         >
-          <Feather name="mic" size={18} color={colors.primary} />
+          <Feather name={isListening ? 'square' : 'mic'} size={18} color={isListening ? colors.primaryForeground : colors.primary} />
         </Pressable>
         <Pressable
           onPress={onAsk}
@@ -2099,6 +2260,7 @@ function CommunityView({
   isLoading,
   onLike,
   onAdd,
+  onTranslate,
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
@@ -2106,13 +2268,37 @@ function CommunityView({
   isLoading: boolean;
   onLike: (id: string) => void;
   onAdd: () => void;
+  onTranslate: (message: string, target: Language) => Promise<string>;
 }) {
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState<Language>('Hindi');
+  const [translationText, setTranslationText] = useState<string | null>(null);
+  const [translationLoading, setTranslationLoading] = useState(false);
+  const [translationFallback, setTranslationFallback] = useState(false);
+  const [translationMessage, setTranslationMessage] = useState<string | null>(null);
 
   const toggleTranslate = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
-    setTranslatingId(current => current === id ? null : id);
+    setTranslatingId(current => {
+      const next = current === id ? null : id;
+      if (next !== id) setTranslationText(null);
+      return next;
+    });
+  };
+
+  const loadTranslation = async (message: string, target: Language) => {
+    setTranslationLoading(true);
+    setTranslationMessage(null);
+    try {
+      setTranslationText(await onTranslate(message, target));
+      setTranslationFallback(false);
+    } catch (error) {
+      setTranslationText(localTranslationPreview(message, target));
+      setTranslationFallback(true);
+      setTranslationMessage(error instanceof Error ? error.message : 'Online translation is unavailable.');
+    } finally {
+      setTranslationLoading(false);
+    }
   };
   return (
     <>
@@ -2192,14 +2378,19 @@ function CommunityView({
             {translatingId === post.id && (
               <View style={[styles.translationBox, { backgroundColor: colors.secondary }]}>
                 <View style={styles.translationTop}>
-                  <Text style={[styles.translationLabel, { color: colors.leafDark }]}>OFFLINE TRANSLATION DEMO</Text>
+                   <Text style={[styles.translationLabel, { color: colors.leafDark }]}>
+                     {translationFallback ? 'OFFLINE FALLBACK' : 'ONLINE TRANSLATION'}
+                   </Text>
                   <Feather name="x" size={14} color={colors.leafDark} onPress={() => setTranslatingId(null)} />
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.translationLanguageRow}>
                   {languageCatalog.map((languageItem) => (
                     <Pressable
                       key={languageItem.key}
-                      onPress={() => setTargetLanguage(languageItem.key)}
+                       onPress={() => {
+                         setTargetLanguage(languageItem.key);
+                         loadTranslation(post.message, languageItem.key).catch(() => undefined);
+                       }}
                       style={[
                         styles.translationLanguageChip,
                         { backgroundColor: targetLanguage === languageItem.key ? colors.primary : colors.card },
@@ -2211,9 +2402,13 @@ function CommunityView({
                     </Pressable>
                   ))}
                 </ScrollView>
-                <Text style={[styles.translationText, { color: colors.foreground }]}>
-                  {localTranslationPreview(post.message, targetLanguage)}
-                </Text>
+                 {translationLoading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+                 <Text style={[styles.translationText, { color: colors.foreground }]}>
+                   {translationText ?? 'Choose a language for a live translation.'}
+                 </Text>
+                 {translationMessage ? (
+                   <Text style={[styles.translationFallbackText, { color: colors.mutedForeground }]}>{translationMessage}</Text>
+                 ) : null}
               </View>
             )}
           </View>
@@ -2628,6 +2823,8 @@ function ProfileView({
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
+  voiceErrorBox: { marginHorizontal: 18, marginTop: 12, padding: 11, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  voiceErrorText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16 },
   headerRow: {
     paddingHorizontal: 22,
     flexDirection: 'row',
@@ -2705,15 +2902,6 @@ const styles = StyleSheet.create({
   simulatorNoticeCopy: { flex: 1, gap: 2 },
   simulatorNoticeTitle: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.8 },
   simulatorNoticeText: { fontFamily: 'Inter_400Regular', fontSize: 11 },
-  mapPickerLabel: { marginHorizontal: 22, marginTop: 16, marginBottom: 8, fontFamily: 'Inter_700Bold', fontSize: 12 },
-  cityPickerLabel: { marginTop: 2 },
-  mapPickerRow: { paddingHorizontal: 18, gap: 8 },
-  mapChoice: { minHeight: 40, borderRadius: 13, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
-  mapChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  districtRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, marginBottom: 14 },
-  districtChoice: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  districtChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  mapCard: { marginHorizontal: 18, aspectRatio: 29.229 / 33.204, borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
   mapPickerCard: { marginHorizontal: 18, marginTop: 16, borderRadius: 18, borderWidth: 1, overflow: 'hidden' },
   mapPickerSummary: { minHeight: 72, paddingHorizontal: 13, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   mapPickerIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -2723,6 +2911,15 @@ const styles = StyleSheet.create({
   mapPickerLevels: { borderTopWidth: 1, padding: 8, flexDirection: 'row', gap: 6 },
   mapPickerLevel: { flex: 1, minHeight: 35, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   mapPickerLevelText: { fontFamily: 'Inter_700Bold', fontSize: 10 },
+  mapPickerLabel: { marginHorizontal: 22, marginTop: 16, marginBottom: 8, fontFamily: 'Inter_700Bold', fontSize: 12 },
+  cityPickerLabel: { marginTop: 2 },
+  mapPickerRow: { paddingHorizontal: 18, gap: 8 },
+  mapChoice: { minHeight: 40, borderRadius: 13, borderWidth: 1, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  mapChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  districtRow: { flexDirection: 'row', paddingHorizontal: 18, gap: 8, marginBottom: 14 },
+  districtChoice: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  districtChoiceText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  mapCard: { marginHorizontal: 18, aspectRatio: 29.229 / 33.204, borderRadius: 24, borderWidth: 1, overflow: 'hidden', position: 'relative' },
   stateHotspot: { position: 'absolute', width: 38, height: 30, marginLeft: -19, marginTop: -15, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
   stateHotspotText: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 0.3 },
   mapPoint: { position: 'absolute', alignItems: 'center', transform: [{ translateX: -20 }, { translateY: -17.5 }] },
@@ -2857,6 +3054,7 @@ const styles = StyleSheet.create({
   voiceTranscriptLabel: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1 },
   voiceTranscriptText: { fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 19 },
   translationBox: { marginHorizontal: -14, marginBottom: -14, marginTop: 12, padding: 12, borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
+  translationFallbackText: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 14, marginTop: 5 },
   translationTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   translationLabel: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 0.8 },
   translationText: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 18 },

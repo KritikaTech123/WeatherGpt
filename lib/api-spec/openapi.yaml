@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: speech
+    description: Speech and translation operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,70 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /speech/status:
+    get:
+      operationId: getSpeechStatus
+      tags: [speech]
+      summary: Check speech and translation availability
+      responses:
+        "200":
+          description: Service availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpeechStatus"
+  /speech/transcribe:
+    post:
+      operationId: transcribeSpeech
+      tags: [speech]
+      summary: Transcribe a recorded farmer question
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [audio]
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                language:
+                  type: string
+                  description: BCP-47 language hint for the recording
+      responses:
+        "200":
+          description: Transcript
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranscriptionResponse"
+        "400":
+          description: Missing or invalid recording
+        "503":
+          description: Speech service is not configured
+  /translation:
+    post:
+      operationId: translateText
+      tags: [speech]
+      summary: Translate a farmer question, answer, or community post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TranslationRequest"
+      responses:
+        "200":
+          description: Translation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TranslationResponse"
+        "400":
+          description: Missing or invalid text
+        "503":
+          description: Translation service is not configured
 components:
   schemas:
     HealthStatus:
@@ -33,4 +99,66 @@ components:
           type: string
       required:
         - status
+    SpeechStatus:
+      type: object
+      properties:
+        speechToTextAvailable:
+          type: boolean
+        translationAvailable:
+          type: boolean
+        message:
+          type: string
+        supportedLanguages:
+          type: array
+          items:
+            type: string
+      required:
+        - speechToTextAvailable
+        - translationAvailable
+        - message
+        - supportedLanguages
+    TranscriptionResponse:
+      type: object
+      properties:
+        transcript:
+          type: string
+        language:
+          type: string
+        fallback:
+          type: boolean
+        message:
+          type: string
+      required:
+        - transcript
+        - language
+        - fallback
+        - message
+    TranslationRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        targetLanguage:
+          type: string
+        sourceLanguage:
+          type: string
+      required:
+        - text
+        - targetLanguage
+    TranslationResponse:
+      type: object
+      properties:
+        translation:
+          type: string
+        targetLanguage:
+          type: string
+        fallback:
+          type: boolean
+        message:
+          type: string
+      required:
+        - translation
+        - targetLanguage
+        - fallback
+        - message
 
