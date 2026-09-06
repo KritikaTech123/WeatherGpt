@@ -74,6 +74,19 @@ type ChatMessage = {
   message: string;
 };
 
+type FarmTask = {
+  id: string;
+  label: string;
+  done: boolean;
+};
+
+type FarmProfile = {
+  name: string;
+  place: string;
+  crop: string;
+  farm: string;
+};
+
 type SimulatedCityWeather = {
   temperature: number;
   rain: number;
@@ -145,6 +158,12 @@ const initialPosts: CommunityPost[] = [
     crop: 'Tomato',
     likes: 9,
   },
+];
+
+const defaultFarmTasks: FarmTask[] = [
+  { id: 'check-soil', label: 'Check soil moisture', done: false },
+  { id: 'inspect-crops', label: 'Walk through the crop rows', done: false },
+  { id: 'water-plan', label: 'Plan today’s watering', done: false },
 ];
 
 type PlaceBranch = { state: string; districts: Record<string, string[]> };
@@ -325,9 +344,18 @@ const translations = {
       dailyAction: 'Complete today’s field check',
       dailyDone: 'Today’s field check is complete',
       farmDetails: 'My Farm',
-      farmSize: 'Size: 12 Acres',
-      mainCrop: 'Crop: Cotton',
-      soilType: 'Soil: Black Cotton',
+      nameLabel: 'Name',
+      placeLabel: 'Place',
+      cropLabel: 'Crop type',
+      farmLabel: 'Farm',
+      nameValue: 'Kisan',
+      cropValue: 'Cotton',
+      farmValue: '12 acres',
+      fieldTasks: 'Today in my field',
+      fieldTasksHint: 'Write what you need to do and tick it when finished.',
+      taskPlaceholder: 'Add a field task',
+      addTask: 'Add',
+      noTasks: 'Your field list is ready for today.',
       logout: 'Sign Out',
     },
     language: {
@@ -451,9 +479,18 @@ const translations = {
       dailyAction: 'आज खेत की जाँच पूरी करें',
       dailyDone: 'आज खेत की जाँच पूरी हुई',
       farmDetails: 'मेरा खेत',
-      farmSize: 'आकार: 12 एकड़',
-      mainCrop: 'फसल: कपास',
-      soilType: 'मिट्टी: काली कपास',
+      nameLabel: 'नाम',
+      placeLabel: 'स्थान',
+      cropLabel: 'फसल का प्रकार',
+      farmLabel: 'खेत',
+      nameValue: 'किसान',
+      cropValue: 'कपास',
+      farmValue: '12 एकड़',
+      fieldTasks: 'आज के खेत के काम',
+      fieldTasksHint: 'जो काम करने हैं लिखें और पूरे होने पर टिक करें।',
+      taskPlaceholder: 'खेत का काम लिखें',
+      addTask: 'जोड़ें',
+      noTasks: 'आज की कामों की सूची तैयार है।',
       logout: 'लॉग आउट',
     },
     language: {
@@ -577,9 +614,18 @@ const translations = {
       dailyAction: 'आजची शेत तपासणी पूर्ण करा',
       dailyDone: 'आजची शेत तपासणी पूर्ण झाली',
       farmDetails: 'माझे शेत',
-      farmSize: 'आकार: 12 एकर',
-      mainCrop: 'पीक: कापूस',
-      soilType: 'माती: काळी कापूस',
+      nameLabel: 'नाव',
+      placeLabel: 'ठिकाण',
+      cropLabel: 'पिकाचा प्रकार',
+      farmLabel: 'शेत',
+      nameValue: 'शेतकरी',
+      cropValue: 'कापूस',
+      farmValue: '12 एकर',
+      fieldTasks: 'आजच्या शेतातील कामे',
+      fieldTasksHint: 'करायची कामे लिहा आणि पूर्ण झाल्यावर टिक करा.',
+      taskPlaceholder: 'शेतातील काम लिहा',
+      addTask: 'जोडा',
+      noTasks: 'आजची कामांची यादी तयार आहे.',
       logout: 'लॉग आउट',
     },
     language: {
@@ -598,6 +644,28 @@ type Copy = (typeof translations)[CoreLanguage];
 const getCopy = (language: Language): Copy => {
   if (language === 'Hindi' || language === 'Marathi') return translations[language];
   return translations.English;
+};
+
+const getWeatherForLocation = (selection: { state: string; district: string; city: string }): SimulatedCityWeather => {
+  const exact = indiaWeatherSimulator[selection.state]?.[selection.district]?.[selection.city];
+  if (exact) return exact;
+
+  const seed = [...selection.state, ...selection.city].reduce((total, character) => total + character.charCodeAt(0), 0);
+  const rain = 8 + (seed % 48);
+  const temperature = 24 + (seed % 11);
+  const wind = 7 + (seed % 12);
+  const humidity = 42 + (seed % 31);
+  const directions = ['N', 'NE', 'E', 'SW', 'W'] as const;
+  return {
+    temperature,
+    rain,
+    wind,
+    windDirection: directions[seed % directions.length],
+    humidity,
+    advice: rain > 35
+      ? 'Keep a rain cover ready and avoid spraying before the clouds pass.'
+      : 'Check the topsoil first, then plan light work during the cooler hours.',
+  };
 };
 
 const localTranslationPreview = (message: string, target: Language) => {
@@ -653,11 +721,21 @@ export default function HomeScreen() {
   const [dailyCheckDone, setDailyCheckDone] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showTodayForecast, setShowTodayForecast] = useState(false);
+  const [showWeekForecast, setShowWeekForecast] = useState(false);
   const [placeSelection, setPlaceSelection] = useState({ state: 'Maharashtra', district: 'Nashik', city: 'Nashik' });
   const [expandedPlace, setExpandedPlace] = useState<string | null>('Maharashtra');
   const [photoUri, setPhotoUri] = useState<string | undefined>();
   const [isVoicePostListening, setIsVoicePostListening] = useState(false);
+  const [voiceAnswer, setVoiceAnswer] = useState('');
+  const [farmTasks, setFarmTasks] = useState<FarmTask[]>(defaultFarmTasks);
+  const [farmProfile] = useState<FarmProfile>({
+    name: 'Kisan',
+    place: 'Nashik, Maharashtra',
+    crop: 'Cotton',
+    farm: '12 acres',
+  });
   const postNeedsKindness = hasDisrespectfulLanguage(newPost);
+  const selectedWeather = getWeatherForLocation(placeSelection);
 
   const loadCurrentLocation = async () => {
     const position =
@@ -698,6 +776,18 @@ export default function HomeScreen() {
       .then((savedDate) => setDailyCheckDone(savedDate === todayKey))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('weathergpt-farm-tasks')
+      .then((saved) => {
+        if (saved) setFarmTasks(JSON.parse(saved) as FarmTask[]);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem('weathergpt-farm-tasks', JSON.stringify(farmTasks)).catch(() => undefined);
+  }, [farmTasks]);
 
   useEffect(() => {
     if (!isLoadingPosts) {
@@ -771,7 +861,7 @@ export default function HomeScreen() {
         {
           id: `${Date.now()}-assistant`,
           role: 'assistant',
-          message: answerFor(trimmed, copy, placeSelection),
+          message: answerFor(trimmed, placeSelection, language),
         },
       ]);
       setIsSending(false);
@@ -802,7 +892,9 @@ export default function HomeScreen() {
       return;
     }
     setIsSpeaking(true);
-    Speech.speak(copy.chat.generalAnswer, {
+    const briefing = answerFor('What is today’s weather and advice?', placeSelection, language);
+    setVoiceAnswer(briefing);
+    Speech.speak(briefing, {
       language: selectedLanguage.locale,
       rate: 0.88,
       onDone: () => setIsSpeaking(false),
@@ -814,9 +906,31 @@ export default function HomeScreen() {
   const askAndHear = () => {
     const trimmed = voiceQuestion.trim();
     if (!trimmed || isSending) return;
-    setVoiceQuestion('');
-    setScreen('chat');
+    const answer = answerFor(trimmed, placeSelection, language);
+    setVoiceAnswer(answer);
+    setIsSpeaking(true);
+    Speech.speak(answer, {
+      language: selectedLanguage.locale,
+      rate: 0.88,
+      onDone: () => setIsSpeaking(false),
+      onStopped: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
     sendQuestion(trimmed);
+  };
+
+  const addFarmTask = (label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setFarmTasks((current) => [
+      ...current,
+      { id: `${Date.now()}-${current.length}`, label: trimmed, done: false },
+    ]);
+  };
+
+  const toggleFarmTask = (id: string) => {
+    setFarmTasks((current) => current.map((task) => task.id === id ? { ...task, done: !task.done } : task));
+    Haptics.selectionAsync().catch(() => undefined);
   };
 
   const toggleLike = (id: string) => {
@@ -888,8 +1002,10 @@ export default function HomeScreen() {
             onProfile={() => selectScreen('profile')}
             onLocation={() => setShowLocationPicker(true)}
             onToday={() => setShowTodayForecast(true)}
+            onWeek={() => setShowWeekForecast(true)}
             onVoice={() => selectScreen('voice')}
             locationLabel={`${placeSelection.city}, ${placeSelection.state}`}
+            weather={selectedWeather}
           />
         ) : screen === 'chat' ? (
           <ChatView
@@ -912,9 +1028,11 @@ export default function HomeScreen() {
             languageName={selectedLanguage.nativeName}
             isSpeaking={isSpeaking}
             question={voiceQuestion}
+            answer={voiceAnswer}
             onQuestionChange={setVoiceQuestion}
             onSpeak={speakBriefing}
             onAsk={askAndHear}
+            onVoiceInput={toggleListening}
             onLanguage={() => setShowLanguagePicker(true)}
           />
         ) : screen === 'map' ? (
@@ -946,6 +1064,10 @@ export default function HomeScreen() {
             onRequestLocation={requestLocation}
             onCompleteDailyCheck={completeDailyCheck}
             onLanguage={() => setShowLanguagePicker(true)}
+            farmProfile={{ ...farmProfile, place: `${placeSelection.city}, ${placeSelection.state}` }}
+            tasks={farmTasks}
+            onAddTask={addFarmTask}
+            onToggleTask={toggleFarmTask}
           />
         )}
       </KeyboardAwareScrollView>
@@ -1080,18 +1202,52 @@ export default function HomeScreen() {
           <Pressable style={[styles.selectorSheet, { backgroundColor: colors.card }]} onPress={(event) => event.stopPropagation()}>
             <View style={styles.composerHandle} />
             <Text style={[styles.composerTitle, { color: colors.foreground }]}>Today in {placeSelection.city}</Text>
-            <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>Warm, with a gentle breeze · 28°</Text>
+            <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>Simple weather details for your selected place</Text>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.hourGrid}>{['Now 28°', '11 AM 29°', '1 PM 31°', '3 PM 30°', '5 PM 27°', '8 PM 23°'].map((item, i) => <View key={item} style={[styles.hourCell, { backgroundColor: colors.secondary }]}><Feather name={i === 4 ? 'cloud-rain' : 'sun'} size={17} color={colors.primary} /><Text style={[styles.hourText, { color: colors.foreground }]}>{item}</Text></View>)}</View>
+              <View style={styles.hourGrid}>{[
+                `Now ${selectedWeather.temperature}°`,
+                `11 AM ${selectedWeather.temperature + 1}°`,
+                `1 PM ${selectedWeather.temperature + 3}°`,
+                `3 PM ${selectedWeather.temperature + 2}°`,
+                `5 PM ${selectedWeather.temperature - 1}°`,
+                `8 PM ${selectedWeather.temperature - 5}°`,
+              ].map((item, i) => <View key={item} style={[styles.hourCell, { backgroundColor: colors.secondary }]}><Feather name={i === 4 ? 'cloud-rain' : 'sun'} size={17} color={colors.primary} /><Text style={[styles.hourText, { color: colors.foreground }]}>{item}</Text></View>)}</View>
               <View style={styles.forecastRows}>
-                <ForecastLine icon="thermometer" title="Feels like" value="30° · a little warmer in the sun" colors={colors} />
-                <ForecastLine icon="cloud-rain" title="Rain" value="18% · a small chance, mostly after 4 PM" colors={colors} />
-                <ForecastLine icon="wind" title="Wind" value="12 km/h · gentle breeze from the southwest" colors={colors} />
-                <ForecastLine icon="droplet" title="Humidity" value="58% · comfortable now, slightly sticky later" colors={colors} />
+                <ForecastLine icon="thermometer" title="Feels like" value={`${selectedWeather.temperature + 2}° · a little warmer in the sun`} colors={colors} />
+                <ForecastLine icon="cloud-rain" title="Rain" value={`${selectedWeather.rain}% · ${selectedWeather.rain < 25 ? 'a small chance' : 'carry a rain cover'} today`} colors={colors} />
+                <ForecastLine icon="wind" title="Wind" value={`${selectedWeather.wind} km/h · gentle breeze from the ${selectedWeather.windDirection}`} colors={colors} />
+                <ForecastLine icon="droplet" title="Humidity" value={`${selectedWeather.humidity}% · check the soil before watering`} colors={colors} />
                 <ForecastLine icon="sunrise" title="Sunrise / sunset" value="6:12 AM / 6:48 PM" colors={colors} />
                 <ForecastLine icon="sun" title="UV / visibility" value="UV 6 (use cover) · 8 km visibility" colors={colors} />
               </View>
-              <View style={[styles.recommendation, { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder }]}><Feather name="check-circle" size={19} color={colors.accent} /><Text style={[styles.recommendationText, { color: colors.foreground }]}>Best plan: inspect and spray before late afternoon. Keep a light rain cover ready.</Text></View>
+              <View style={[styles.recommendation, { backgroundColor: colors.warmSurface, borderColor: colors.warmBorder }]}><Feather name="check-circle" size={19} color={colors.accent} /><Text style={[styles.recommendationText, { color: colors.foreground }]}>{selectedWeather.advice}</Text></View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={showWeekForecast} animationType="slide" transparent onRequestClose={() => setShowWeekForecast(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowWeekForecast(false)}>
+          <Pressable style={[styles.selectorSheet, { backgroundColor: colors.card }]} onPress={(event) => event.stopPropagation()}>
+            <View style={styles.composerHandle} />
+            <Text style={[styles.composerTitle, { color: colors.foreground }]}>7-day outlook</Text>
+            <Text style={[styles.composerHint, { color: colors.mutedForeground }]}>{placeSelection.city}, {placeSelection.state} · simple planning view</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {['Today', 'Tomorrow', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day, index) => {
+                const temp = selectedWeather.temperature + ((index * 2) % 5) - 2;
+                const rain = Math.max(5, Math.min(80, selectedWeather.rain + index * 6 - 9));
+                return (
+                  <View key={day} style={[styles.weekForecastRow, { backgroundColor: index === 0 ? colors.secondary : colors.muted }]}>
+                    <View style={styles.weekForecastDay}>
+                      <Text style={[styles.weekForecastDayText, { color: colors.foreground }]}>{day}</Text>
+                      <Text style={[styles.weekForecastHint, { color: colors.mutedForeground }]}>{rain < 25 ? 'Mostly dry' : 'Rain may come'}</Text>
+                    </View>
+                    <Feather name={rain > 35 ? 'cloud-rain' : index % 3 === 1 ? 'cloud' : 'sun'} size={20} color={rain > 35 ? colors.rain : colors.sun} />
+                    <Text style={[styles.weekForecastTemp, { color: colors.foreground }]}>{temp}°</Text>
+                    <Text style={[styles.weekForecastRain, { color: colors.primary }]}>{rain}% rain</Text>
+                  </View>
+                );
+              })}
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -1149,8 +1305,10 @@ function HomeView({
   onProfile,
   onLocation,
   onToday,
+  onWeek,
   onVoice,
   locationLabel,
+  weather,
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
@@ -1160,8 +1318,10 @@ function HomeView({
   onProfile: () => void;
   onLocation: () => void;
   onToday: () => void;
+  onWeek: () => void;
   onVoice: () => void;
   locationLabel: string;
+  weather: SimulatedCityWeather;
 }) {
   return (
     <>
@@ -1192,6 +1352,7 @@ function HomeView({
           <Feather name="user" size={20} color={colors.accentForeground} />
         </Pressable>
       </View>
+      </View>
 
       <Pressable onPress={onLocation} accessibilityLabel="Choose location" style={({ pressed }) => [styles.locationRow, { opacity: pressed ? 0.65 : 1 }]}>
         <Feather name="map-pin" size={14} color={colors.coral} />
@@ -1212,27 +1373,29 @@ function HomeView({
           </View>
           <Feather name="sun" size={24} color={colors.sun} />
         </View>
-        <Text style={styles.heroTemperature}>28°</Text>
+        <Text style={styles.heroTemperature}>{weather.temperature}°</Text>
         <Text style={styles.heroCondition}>{copy.home.condition}</Text>
         <View style={styles.heroDivider} />
         <View style={styles.heroStats}>
           <WeatherStat icon="sunrise" value="6:12 AM" label={copy.home.sunrise} />
-          <WeatherStat icon="droplet" value="18%" label={copy.home.rainChance} />
-          <WeatherStat icon="wind" value="12 km/h" label={copy.home.wind} />
+          <WeatherStat icon="droplet" value={`${weather.rain}%`} label={copy.home.rainChance} />
+          <WeatherStat icon="wind" value={`${weather.wind} km/h`} label={copy.home.wind} />
         </View>
       </LinearGradient>
       </Pressable>
 
       <View style={styles.sectionHeading}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.home.dayAtGlance}</Text>
-        <Text style={[styles.sectionAction, { color: colors.primary }]}>{copy.home.seeWeek}</Text>
+        <Pressable onPress={onWeek} accessibilityLabel={copy.home.seeWeek}>
+          <Text style={[styles.sectionAction, { color: colors.primary }]}>{copy.home.seeWeek}</Text>
+        </Pressable>
       </View>
       <View style={styles.weekRow}>
-        <DayWeather day={copy.home.today} temp="28°" icon="sun" active colors={colors} />
-        <DayWeather day="Tue" temp="29°" icon="cloud" colors={colors} />
-        <DayWeather day="Wed" temp="26°" icon="cloud-rain" rain colors={colors} />
-        <DayWeather day="Thu" temp="27°" icon="cloud" colors={colors} />
-        <DayWeather day="Fri" temp="30°" icon="sun" colors={colors} />
+        <DayWeather day={copy.home.today} temp={`${weather.temperature}°`} icon="sun" active colors={colors} />
+        <DayWeather day="Tue" temp={`${weather.temperature + 1}°`} icon="cloud" colors={colors} />
+        <DayWeather day="Wed" temp={`${weather.temperature - 2}°`} icon="cloud-rain" rain colors={colors} />
+        <DayWeather day="Thu" temp={`${weather.temperature - 1}°`} icon="cloud" colors={colors} />
+        <DayWeather day="Fri" temp={`${weather.temperature + 2}°`} icon="sun" colors={colors} />
       </View>
 
       <Pressable
@@ -1454,9 +1617,11 @@ function VoiceView({
   languageName,
   isSpeaking,
   question,
+  answer,
   onQuestionChange,
   onSpeak,
   onAsk,
+  onVoiceInput,
   onLanguage,
 }: {
   colors: ReturnType<typeof useColors>;
@@ -1465,12 +1630,14 @@ function VoiceView({
   languageName: string;
   isSpeaking: boolean;
   question: string;
+  answer: string;
   onQuestionChange: (value: string) => void;
   onSpeak: () => void;
   onAsk: () => void;
+  onVoiceInput: () => void;
   onLanguage: () => void;
 }) {
-  const voiceState = isSpeaking ? 'speaking' : question ? 'thinking' : 'ready';
+  const voiceState = isSpeaking ? 'speaking' : question && !answer ? 'thinking' : 'ready';
   return (
     <>
       <View style={styles.voiceIntro}>
@@ -1536,6 +1703,7 @@ function VoiceView({
         <Text style={[styles.voiceTranscriptLabel, { color: colors.primary }]}>CONVERSATION</Text>
         <Text style={[styles.voiceTranscriptText, { color: colors.foreground }]}>“Ask me about today’s rain, wind, or your plans.”</Text>
         {question ? <Text style={[styles.voiceTranscriptText, { color: colors.leafDark }]}>You: {question}</Text> : null}
+        {answer ? <Text style={[styles.voiceTranscriptText, { color: colors.foreground }]}>WeatherGPT: {answer}</Text> : null}
       </View>
 
       <Text style={[styles.voiceAskLabel, { color: colors.foreground }]}>{copy.chat.askAndHear}</Text>
@@ -1550,6 +1718,16 @@ function VoiceView({
           returnKeyType="send"
           onSubmitEditing={onAsk}
         />
+        <Pressable
+          onPress={onVoiceInput}
+          accessibilityLabel={copy.chat.askByVoice}
+          style={({ pressed }) => [
+            styles.micButton,
+            { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+          ]}
+        >
+          <Feather name="mic" size={18} color={colors.primary} />
+        </Pressable>
         <Pressable
           onPress={onAsk}
           accessibilityLabel={copy.chat.sendQuestion}
@@ -2139,46 +2317,68 @@ function MapPoint({
   );
 }
 
-function answerFor(question: string, copy: Copy, placeSelection: { state: string; city: string }) {
+function answerFor(
+  question: string,
+  placeSelection: { state: string; district: string; city: string },
+  language: Language,
+) {
+  const lower = question.toLocaleLowerCase();
+  let selection = placeSelection;
 
-  let locationContext = placeSelection.city;
-  let stateContext = placeSelection.state;
   for (const place of allIndiaPlaces) {
-    if (question.toLowerCase().includes(place.state.toLowerCase())) {
-      locationContext = Object.values(place.districts)[0][0];
-      stateContext = place.state;
+    if (lower.includes(place.state.toLocaleLowerCase())) {
+      const district = Object.keys(place.districts)[0];
+      selection = { state: place.state, district, city: place.districts[district][0] };
     }
-    for (const dist of Object.values(place.districts)) {
-      for (const city of dist) {
-        if (question.toLowerCase().includes(city.toLowerCase())) {
-          locationContext = city;
-          stateContext = place.state;
+    for (const [district, cities] of Object.entries(place.districts)) {
+      for (const city of cities) {
+        if (lower.includes(city.toLocaleLowerCase())) {
+          selection = { state: place.state, district, city };
         }
       }
     }
   }
-  let weather = indiaWeatherSimulator[stateContext]?.[Object.keys(indiaWeatherSimulator[stateContext] || {})[0]]?.[locationContext];
-  if (!weather) {
-    for (const dist of Object.values(indiaWeatherSimulator[stateContext] || {})) {
-      if (dist[locationContext]) weather = dist[locationContext];
-    }
-  }
-  const fallbackAdvice = 'General advice: check soil moisture.';
-  const weatherStr = weather ? `Currently ${weather.temperature}°C, ${weather.rain}% chance of rain. Advice: ${weather.advice}` : fallbackAdvice;
-  const intro = `(Simulated for ${locationContext}, ${stateContext}) `;
 
-  const lower = question.toLowerCase();
-  if (lower.includes('spray') || question.includes('दवा') || question.includes('फवारणी')) {
-    return intro + copy.chat.sprayAnswer;
-  }
-  if (lower.includes('rain') || question.includes('बारिश') || question.includes('पाऊस')) {
-    return intro + copy.chat.rainAnswer;
-  }
-  if (lower.includes('water') || question.includes('पानी') || question.includes('पाणी')) {
-    return intro + copy.chat.waterAnswer;
-  }
-  return intro + weatherStr;
+  const weather = getWeatherForLocation(selection);
+  const placeText = `${selection.city}, ${selection.state}`;
+  const rainPlan = weather.rain < 25
+    ? 'Rain is unlikely, so a short outdoor plan should be comfortable.'
+    : 'Keep a light rain cover ready and check the sky before starting.';
+  const lowerIntent = lower.normalize('NFKC');
 
+  if (lowerIntent.includes('spray') || lowerIntent.includes('pesticide') || question.includes('दवा') || question.includes('छिड़क') || question.includes('फवारणी')) {
+    if (language === 'Hindi') return `${placeText}: आज छिड़काव तभी करें जब पत्ते सूखे हों। बारिश की संभावना ${weather.rain}% और हवा ${weather.wind} किमी/घंटा है।`;
+    if (language === 'Marathi') return `${placeText}: पाने कोरडी असतील तर आज फवारणी करू शकता. पावसाची शक्यता ${weather.rain}% आणि वारा ${weather.wind} किमी/ता आहे.`;
+    return `${placeText}: spraying can work today if the leaves are dry. Rain chance is ${weather.rain}% and wind is ${weather.wind} km/h.`;
+  }
+
+  if (lowerIntent.includes('rain') || lowerIntent.includes('raining') || question.includes('बारिश') || question.includes('पाऊस')) {
+    if (language === 'Hindi') return `${placeText}: बारिश की संभावना ${weather.rain}% है। ${weather.rain < 25 ? 'आज काम कर सकते हैं।' : 'बारिश का कवर पास रखें।'}`;
+    if (language === 'Marathi') return `${placeText}: पावसाची शक्यता ${weather.rain}% आहे. ${weather.rain < 25 ? 'आज काम करू शकता.' : 'पावसाचे आवरण जवळ ठेवा.'}`;
+    return `${placeText}: the chance of rain is ${weather.rain}%. ${rainPlan}`;
+  }
+
+  if (lowerIntent.includes('water') || lowerIntent.includes('irrigat') || question.includes('पानी') || question.includes('सिंच') || question.includes('पाणी')) {
+    if (language === 'Hindi') return `${placeText}: पहले ऊपर की मिट्टी जाँचें। नमी कम हो तो सुबह जड़ों के पास पानी दें; हवा ${weather.wind} किमी/घंटा है।`;
+    if (language === 'Marathi') return `${placeText}: आधी वरची माती तपासा. नमी कमी असेल तर सकाळी मुळांजवळ पाणी द्या; वारा ${weather.wind} किमी/ता आहे.`;
+    return `${placeText}: check the topsoil first. If it is dry, water near the roots in the morning; wind is ${weather.wind} km/h.`;
+  }
+
+  if (lowerIntent.includes('wind') || lowerIntent.includes('humidity') || question.includes('हवा') || question.includes('नमी') || question.includes('वारा')) {
+    if (language === 'Hindi') return `${placeText}: हवा ${weather.wind} किमी/घंटा ${weather.windDirection} दिशा से है और नमी ${weather.humidity}% है।`;
+    if (language === 'Marathi') return `${placeText}: वारा ${weather.wind} किमी/ता ${weather.windDirection} दिशेने आहे आणि आर्द्रता ${weather.humidity}% आहे.`;
+    return `${placeText}: wind is ${weather.wind} km/h from the ${weather.windDirection}, with ${weather.humidity}% humidity.`;
+  }
+
+  if (lowerIntent.includes('temperature') || lowerIntent.includes('hot') || lowerIntent.includes('cold') || question.includes('तापमान') || question.includes('गरमी') || question.includes('उष्ण')) {
+    if (language === 'Hindi') return `${placeText}: तापमान करीब ${weather.temperature}°C है। दोपहर में छाया और पानी का ध्यान रखें।`;
+    if (language === 'Marathi') return `${placeText}: तापमान सुमारे ${weather.temperature}°C आहे. दुपारी सावली आणि पाण्याची काळजी घ्या.`;
+    return `${placeText}: it is around ${weather.temperature}°C. Plan hard work in the cooler hours and keep water nearby.`;
+  }
+
+  if (language === 'Hindi') return `${placeText}: तापमान ${weather.temperature}°C, बारिश की संभावना ${weather.rain}% और हवा ${weather.wind} किमी/घंटा है। ${weather.advice}`;
+  if (language === 'Marathi') return `${placeText}: तापमान ${weather.temperature}°C, पावसाची शक्यता ${weather.rain}% आणि वारा ${weather.wind} किमी/ता आहे. ${weather.advice}`;
+  return `${placeText}: it is ${weather.temperature}°C, rain chance is ${weather.rain}%, and wind is ${weather.wind} km/h. ${weather.advice}`;
 }
 
 function ProfileView({
@@ -2190,6 +2390,10 @@ function ProfileView({
   onRequestLocation,
   onCompleteDailyCheck,
   onLanguage,
+  farmProfile,
+  tasks,
+  onAddTask,
+  onToggleTask,
 }: {
   colors: ReturnType<typeof useColors>;
   copy: Copy;
@@ -2199,14 +2403,26 @@ function ProfileView({
   onRequestLocation: () => void;
   onCompleteDailyCheck: () => void;
   onLanguage: () => void;
+  farmProfile: FarmProfile;
+  tasks: FarmTask[];
+  onAddTask: (label: string) => void;
+  onToggleTask: (id: string) => void;
 }) {
+  const [newTask, setNewTask] = useState('');
+
+  const submitTask = () => {
+    if (!newTask.trim()) return;
+    onAddTask(newTask);
+    setNewTask('');
+  };
+
   return (
     <>
       <View style={styles.profileHeader}>
         <View style={[styles.profileAvatar, { backgroundColor: colors.accent, borderColor: colors.warmBorder }]}>
           <Feather name="user" size={32} color={colors.accentForeground} />
         </View>
-        <Text style={[styles.profileName, { color: colors.foreground }]}>{copy.home.greeting}</Text>
+        <Text style={[styles.profileName, { color: colors.foreground }]}>{farmProfile.name}</Text>
       </View>
 
       <View style={styles.profileSection}>
@@ -2277,24 +2493,56 @@ function ProfileView({
       <View style={styles.profileSection}>
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.profile.farmDetails}</Text>
         <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={styles.profileRow}>
-            <View style={[styles.profileIconWrap, { backgroundColor: colors.secondary }]}>
-              <Feather name="grid" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.profileRowCopy}>
-              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.profile.farmSize}</Text>
-              <Text style={[styles.profileRowSubtitle, { color: colors.mutedForeground }]}>{copy.profile.mainCrop}</Text>
-            </View>
-          </View>
-          <View style={styles.profileDivider} />
-          <View style={styles.profileRow}>
-            <View style={[styles.profileIconWrap, { backgroundColor: colors.secondary }]}>
-              <Feather name="layers" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.profileRowCopy}>
-              <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{copy.profile.soilType}</Text>
-            </View>
-          </View>
+          {[
+            { icon: 'user' as IconName, label: copy.profile.nameLabel, value: farmProfile.name },
+            { icon: 'map-pin' as IconName, label: copy.profile.placeLabel, value: farmProfile.place },
+            { icon: 'sun' as IconName, label: copy.profile.cropLabel, value: farmProfile.crop },
+            { icon: 'grid' as IconName, label: copy.profile.farmLabel, value: farmProfile.farm },
+          ].map((item, index) => (
+            <React.Fragment key={item.label}>
+              {index > 0 ? <View style={styles.profileDivider} /> : null}
+              <View style={styles.profileRow}>
+                <View style={[styles.profileIconWrap, { backgroundColor: colors.secondary }]}>
+                  <Feather name={item.icon} size={18} color={colors.primary} />
+                </View>
+                <View style={styles.profileRowCopy}>
+                  <Text style={[styles.profileRowSubtitle, { color: colors.mutedForeground }]}>{item.label}</Text>
+                  <Text style={[styles.profileRowTitle, { color: colors.foreground }]}>{item.value}</Text>
+                </View>
+              </View>
+            </React.Fragment>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.profileSection}>
+        <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{copy.profile.fieldTasks}</Text>
+        <Text style={[styles.taskHint, { color: colors.mutedForeground }]}>{copy.profile.fieldTasksHint}</Text>
+        <View style={[styles.taskComposer, { backgroundColor: colors.card, borderColor: colors.input }]}>
+          <TextInput
+            value={newTask}
+            onChangeText={setNewTask}
+            placeholder={copy.profile.taskPlaceholder}
+            placeholderTextColor={colors.mutedForeground}
+            style={[styles.taskInput, { color: colors.foreground }]}
+            returnKeyType="done"
+            onSubmitEditing={submitTask}
+          />
+          <Pressable onPress={submitTask} style={[styles.taskAddButton, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.taskAddText, { color: colors.primaryForeground }]}>{copy.profile.addTask}</Text>
+          </Pressable>
+        </View>
+        <View style={[styles.taskList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {tasks.length ? tasks.map((task) => (
+            <Pressable key={task.id} onPress={() => onToggleTask(task.id)} style={styles.taskRow}>
+              <View style={[styles.taskCheck, { borderColor: task.done ? colors.primary : colors.border, backgroundColor: task.done ? colors.primary : 'transparent' }]}>
+                {task.done ? <Feather name="check" size={13} color={colors.primaryForeground} /> : null}
+              </View>
+              <Text style={[styles.taskText, { color: task.done ? colors.mutedForeground : colors.foreground, textDecorationLine: task.done ? 'line-through' : 'none' }]}>{task.label}</Text>
+            </Pressable>
+          )) : (
+            <Text style={[styles.taskEmpty, { color: colors.mutedForeground }]}>{copy.profile.noTasks}</Text>
+          )}
         </View>
       </View>
 
@@ -2534,6 +2782,12 @@ const styles = StyleSheet.create({
   forecastValue: { fontFamily: 'Inter_600SemiBold', fontSize: 12, lineHeight: 17 },
   recommendation: { flexDirection: 'row', gap: 9, borderWidth: 1, borderRadius: 15, padding: 13, marginTop: 17, marginBottom: 12 },
   recommendationText: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 12, lineHeight: 18 },
+  weekForecastRow: { minHeight: 62, borderRadius: 15, marginTop: 8, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  weekForecastDay: { flex: 1, gap: 3 },
+  weekForecastDayText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  weekForecastHint: { fontFamily: 'Inter_400Regular', fontSize: 10 },
+  weekForecastTemp: { fontFamily: 'Inter_700Bold', fontSize: 16, width: 38 },
+  weekForecastRain: { fontFamily: 'Inter_600SemiBold', fontSize: 10, width: 58, textAlign: 'right' },
   voiceTranscript: { borderRadius: 16, padding: 14, marginTop: 14, gap: 7 },
   voiceTranscriptLabel: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1 },
   voiceTranscriptText: { fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 19 },
@@ -2562,6 +2816,16 @@ const styles = StyleSheet.create({
   profileDivider: { height: 1, backgroundColor: '#EDF2EA', marginVertical: 14 },
   dailyCheckButton: { minHeight: 46, borderRadius: 14, marginTop: 15, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   dailyCheckText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  taskHint: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 5, marginBottom: 10 },
+  taskComposer: { borderRadius: 16, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  taskInput: { flex: 1, minHeight: 39, paddingHorizontal: 10, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  taskAddButton: { minHeight: 38, borderRadius: 12, paddingHorizontal: 13, alignItems: 'center', justifyContent: 'center' },
+  taskAddText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  taskList: { borderRadius: 18, borderWidth: 1, marginTop: 10, paddingHorizontal: 13 },
+  taskRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#EDF2EA' },
+  taskCheck: { width: 23, height: 23, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  taskText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 17 },
+  taskEmpty: { paddingVertical: 18, fontFamily: 'Inter_400Regular', fontSize: 12 },
   actionButton: { minHeight: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   actionButtonText: { fontFamily: 'Inter_700Bold', fontSize: 14 },
   profileLocalNote: { marginHorizontal: 30, marginTop: 2, marginBottom: 38, textAlign: 'center', fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15 },
