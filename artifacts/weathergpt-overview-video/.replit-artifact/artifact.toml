@@ -1,0 +1,23 @@
+kind = "video"
+videoAspectRatio = "9:16"
+previewPath = "/weather-overview-video"
+title = "WeatherGPT for Farmers — Overview Film"
+description = "A vertical motion story about accessible, local, multilingual weather guidance for farmers and everyday users across India."
+version = "1.0.0"
+id = "artifacts/weathergpt-overview-video"
+
+[[services]]
+name = "video"
+paths = [ "/weather-overview-video" ]
+localPort = 20185
+
+[services.development]
+run = "pnpm --filter @workspace/weathergpt-overview-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/weathergpt-overview-video", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/weathergpt-overview-video", "run", "serve" ]
+
+[services.env]
+PORT = "20185"
+BASE_PATH = "/weather-overview-video/"
