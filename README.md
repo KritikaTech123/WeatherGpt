@@ -1,67 +1,78 @@
 # 🌦️ WeatherGPT — AI-Powered Hyperlocal Weather Intelligence for Bharat 🇮🇳
 
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
-![Bhashini](https://img.shields.io/badge/Bhashini-Enabled-orange)
-![WIS2.0](https://img.shields.io/badge/WMO-WIS2.0-blueviolet)
+![Expo](https://img.shields.io/badge/Expo-SDK%2057-4630EB)
+![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)
+![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178C6)
 
-> **Bringing trusted, multilingual, hyperlocal weather intelligence to every citizen — even offline.**
+> **A multilingual, voice-first weather companion that turns complex forecasts into clear and actionable guidance for Indian farmers.**
 
 ---
 
 ## 📌 Executive Summary
 
-WeatherGPT is an **AI-driven disaster intelligence platform** built for the **Smart India Hackathon (PS ID: 26068)** under the **Ministry of Earth Sciences (MoES) / IMD**.
+WeatherGPT is a prototype weather and agricultural advisory platform built for **Smart India Hackathon PS ID: 26068** under the **Ministry of Earth Sciences (MoES) / IMD**.
 
-It bridges the gap between **complex meteorological data** and **real-world decision-making**, especially for **rural communities and farmers**.
+The app brings weather information, crop guidance, conversational help, location selection, and farmer community support into one mobile-first experience.
 
 ### ❗ Problem vs ✅ Solution
 
 | ❗ Problem | ✅ WeatherGPT Solution |
 |----------|----------------------|
-| Weather forecasts are too technical | Converts into **actionable insights** (e.g., farming decisions) |
-| Language barriers in rural India | **Voice-first multilingual interface** via Bhashini |
-| Inaccurate AI hallucinated forecasts | Direct ingestion of **GRIB2 NWP data (GFS/WRF)** |
-| Delayed disaster alerts | Real-time **WIS2.0 MQTT alert streaming** |
-| Poor internet connectivity | **Offline-first audio caching & fallback APIs** |
+| Weather forecasts are too technical | Converts weather conditions into plain-language field guidance |
+| Language barriers limit rural access | Provides a multilingual interface with 25 supported languages |
+| Farmers need location-specific advice | Includes Indian state, district, and city weather selection |
+| Critical guidance is scattered across apps | Combines forecast, voice, chat, map, and community experiences |
+| Users need to remember daily field tasks | Includes farm profile, daily checks, and progress tracking |
+
+---
+
+## 📱 Preview
+
+<p align="center">
+  <img src="screenshots/weathergpt-overview-video.jpg" alt="WeatherGPT mobile interface" width="390">
+</p>
 
 ---
 
 ## 🚀 Key Features
 
-### 🗣️ Rural Voice & Multilingual Module
-- Speech-to-text + text-to-speech via **Bhashini API**
-- Supports **regional dialects + translations**
-- Works even on **low bandwidth (2G/3G)**
+### 🗣️ Multilingual Voice Experience
+- Voice briefing and speech-to-text controls
+- 25-language catalog including Hindi, Marathi, Bengali, Tamil, Odia, and Punjabi
+- Optional speech and translation integration through an OpenAI-compatible service
 
-### 🌐 Direct NWP Model Ingestion
-- Parses **GRIB2 weather files** (GFS / WRF)
-- Uses `cfgrib` + `xarray`
-- Eliminates hallucination → **100% data-grounded forecasts**
+### 🌾 Agricultural Field Guidance
+- Plain-language weather summaries
+- Crop-specific advice
+- Daily field checklist
+- Farm profile with crop and acreage information
+- 5-day and 7-day forecast views
 
-### 🚨 Real-Time Disaster Alerts (WIS2.0)
-- MQTT-based ingestion from **WMO Global Broker**
-- Push notifications with **geofencing**
-- Early warning system for floods, storms, cyclones
+### 💬 Conversational Weather Assistant
+- Quick questions for rainfall, wind, spraying, irrigation, and harvesting
+- Context-aware mock responses for the prototype
+- Text and microphone input
+- Spoken responses through the device speech engine
 
-### 🌾 Actionable Agricultural Advisory
-- Converts weather → **real farming actions**
-- Example:
-  - *80mm rainfall → Flood risk → Delay fertilizer*
-- Based on IMD Agromet bulletins (RAG powered)
+### 🗺️ India Weather Simulator
+- State, district, and city selection
+- Interactive India map
+- Rain, wind, and field map layers
+- Location-specific temperature, humidity, rain, wind, and recommendations
 
-### 🗺️ GIS Telemetry Map & Diagnostics
-- Interactive maps using **Leaflet / Mapbox**
-- Radar heatmaps + weather layers
-- Upload crop images → **AI damage analysis**
+### 👩‍🌾 Farmer Community
+- Share community posts
+- Like and translate posts
+- Add field photos
+- Respectful-language assistance
+- Posts and profile progress stored locally on the device
 
-### 📡 Offline-First Resilience
-- Audio caching for repeat queries
-- Fallback layers when:
-  - Bhashini unavailable
-  - Translation APIs down
-- Designed for **rural connectivity realities**
+### 📡 Offline-Friendly Prototype
+- Core experience works without account setup
+- Community posts and daily progress are stored using local device storage
+- Live speech features fall back safely when unavailable
 
 ---
 
@@ -69,18 +80,117 @@ It bridges the gap between **complex meteorological data** and **real-world deci
 
 ```mermaid
 flowchart TD
-    A["User (Voice/Text)"] --> B["Frontend - React PWA"]
-    B --> C["FastAPI Gateway"]
-
-    C --> D["Voice Service - Bhashini"]
-    C --> E["Weather Engine - GRIB2 Parser"]
-    C --> F["Alert Engine - MQTT WIS2"]
-    C --> G["RAG Engine - Vector DB"]
-
-    E --> H["cfgrib and xarray"]
-    F --> I["WMO Global Broker"]
-    G --> J["IMD Agromet Data"]
-
-    C --> K["Response Generator"]
-    K --> B
+    A["User: Text or Voice"] --> B["Expo React Native Web App"]
+    B --> C["Weather Simulator and Local State"]
+    B --> D["Express API"]
+    D --> E["Speech-to-Text"]
+    D --> F["Translation Service"]
+    D --> G["Optional OpenAI-Compatible Provider"]
+    C --> H["Actionable Farmer Guidance"]
+    E --> H
+    F --> H
+    H --> B
 ```
+
+### Tech Stack
+
+- **Frontend:** Expo SDK 57, React Native 0.86, React Native Web, Expo Router
+- **Language:** TypeScript
+- **API:** Express.js with OpenAPI-generated React client
+- **Storage:** AsyncStorage for local demo data
+- **Maps:** React Native SVG India state map
+- **Voice:** Expo Audio, Expo Speech, and optional server transcription
+- **Build:** pnpm workspaces
+
+---
+
+## 🧪 Demo Data Notice
+
+> [!IMPORTANT]
+> The current repository is a working prototype. Weather values and location forecasts are interactive simulation data, not a claim of live forecast accuracy. A production deployment should connect verified IMD or other authorized providers, GRIB/NWP processing, WIS2.0 alert streams, and secure backend services.
+
+---
+
+## 🛠️ Run Locally
+
+### Requirements
+
+- Node.js 20 or newer
+- pnpm 10 or newer
+- Expo Go for mobile testing, or a modern browser for web
+
+### Installation
+
+```powershell
+corepack enable
+corepack pnpm install
+```
+
+### Start the Web App
+
+```powershell
+corepack pnpm dev:web
+```
+
+Open `http://localhost:8081`.
+
+### Start the Expo App
+
+```powershell
+corepack pnpm dev
+```
+
+Scan the QR code with Expo Go.
+
+### Validation
+
+```powershell
+corepack pnpm typecheck
+corepack pnpm build
+```
+
+The production web build is written to `artifacts/weathergpt-farmers/dist`.
+
+---
+
+## 🔐 Environment Configuration
+
+Optional API settings are documented in [`.env.example`](.env.example).
+
+- `EXPO_PUBLIC_DOMAIN` — API host used by the Expo app
+- `PORT` — Express API port
+- `DATABASE_URL` — optional PostgreSQL connection
+- `AI_INTEGRATIONS_OPENAI_API_KEY` — optional provider key
+- `AI_INTEGRATIONS_OPENAI_BASE_URL` — optional provider base URL
+
+Never commit real API keys or credentials.
+
+---
+
+## 📂 Project Structure
+
+- `artifacts/weathergpt-farmers` — Expo mobile and web application
+- `artifacts/api-server` — Express API
+- `lib/api-spec` — OpenAPI specification
+- `lib/api-client-react` — generated React API client
+- `lib/db` — Drizzle database schema
+- `screenshots` — app preview assets
+- `.github/workflows/ci.yml` — automated type-check and web build
+
+---
+
+## 🔮 Future Scope
+
+- Live IMD and WIS2.0/NWP weather ingestion
+- Verified disaster alert geofencing
+- Regional voice recognition and offline audio caching
+- Crop image analysis
+- Secure user accounts and cloud-synchronized community posts
+- Android and iOS store deployment
+- Global weather and climate integration
+
+---
+
+## 📄 License
+
+MIT. See [LICENSE](LICENSE).
