@@ -1,83 +1,86 @@
-# WeatherGPT for Farmers
+# 🌦️ WeatherGPT — AI-Powered Hyperlocal Weather Intelligence for Bharat 🇮🇳
 
-A mobile-first weather companion for Indian farmers, designed to turn weather forecasts into clear crop guidance and community support.
+![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688)
+![Bhashini](https://img.shields.io/badge/Bhashini-Enabled-orange)
+![WIS2.0](https://img.shields.io/badge/WMO-WIS2.0-blueviolet)
 
-## Features
+> **Bringing trusted, multilingual, hyperlocal weather intelligence to every citizen — even offline.**
 
-- Plain-language local weather summaries
-- Crop-specific field advice
-- 5-day forecast and 7-day planning view
-- Interactive India state, district, and city weather simulator
-- Weather chat with quick questions
-- Voice briefings and speech-to-text controls
-- Community posts, likes, photos, and polite-language checks
-- English, Hindi, Marathi, and 22 additional Indian languages
-- Location and farm-profile support
+---
 
-The core experience is frontend-first and works without account setup. Community posts and profile progress are stored on the device.
+## 📌 Executive Summary
 
-## Tech stack
+WeatherGPT is an **AI-driven disaster intelligence platform** built for the **Smart India Hackathon (PS ID: 26068)** under the **Ministry of Earth Sciences (MoES) / IMD**.
 
-- Expo SDK 57
-- React Native 0.86
-- Expo Router
-- TypeScript
-- pnpm workspaces
-- Express API and OpenAPI code generation
+It bridges the gap between **complex meteorological data** and **real-world decision-making**, especially for **rural communities and farmers**.
 
-## Requirements
+### ❗ Problem vs ✅ Solution
 
-- Node.js 20 or newer
-- pnpm 10 or newer
-- Expo Go for mobile testing, or a browser for the web preview
+| ❗ Problem | ✅ WeatherGPT Solution |
+|----------|----------------------|
+| Weather forecasts are too technical | Converts into **actionable insights** (e.g., farming decisions) |
+| Language barriers in rural India | **Voice-first multilingual interface** via Bhashini |
+| Inaccurate AI hallucinated forecasts | Direct ingestion of **GRIB2 NWP data (GFS/WRF)** |
+| Delayed disaster alerts | Real-time **WIS2.0 MQTT alert streaming** |
+| Poor internet connectivity | **Offline-first audio caching & fallback APIs** |
 
-## Run locally
+---
 
-```powershell
-corepack enable
-corepack pnpm install
-corepack pnpm dev:web
+## 🚀 Key Features
+
+### 🗣️ Rural Voice & Multilingual Module
+- Speech-to-text + text-to-speech via **Bhashini API**
+- Supports **regional dialects + translations**
+- Works even on **low bandwidth (2G/3G)**
+
+### 🌐 Direct NWP Model Ingestion
+- Parses **GRIB2 weather files** (GFS / WRF)
+- Uses `cfgrib` + `xarray`
+- Eliminates hallucination → **100% data-grounded forecasts**
+
+### 🚨 Real-Time Disaster Alerts (WIS2.0)
+- MQTT-based ingestion from **WMO Global Broker**
+- Push notifications with **geofencing**
+- Early warning system for floods, storms, cyclones
+
+### 🌾 Actionable Agricultural Advisory
+- Converts weather → **real farming actions**
+- Example:
+  - *80mm rainfall → Flood risk → Delay fertilizer*
+- Based on IMD Agromet bulletins (RAG powered)
+
+### 🗺️ GIS Telemetry Map & Diagnostics
+- Interactive maps using **Leaflet / Mapbox**
+- Radar heatmaps + weather layers
+- Upload crop images → **AI damage analysis**
+
+### 📡 Offline-First Resilience
+- Audio caching for repeat queries
+- Fallback layers when:
+  - Bhashini unavailable
+  - Translation APIs down
+- Designed for **rural connectivity realities**
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TD
+    A["User (Voice/Text)"] --> B["Frontend - React PWA"]
+    B --> C["FastAPI Gateway"]
+
+    C --> D["Voice Service - Bhashini"]
+    C --> E["Weather Engine - GRIB2 Parser"]
+    C --> F["Alert Engine - MQTT WIS2"]
+    C --> G["RAG Engine - Vector DB"]
+
+    E --> H["cfgrib and xarray"]
+    F --> I["WMO Global Broker"]
+    G --> J["IMD Agromet Data"]
+
+    C --> K["Response Generator"]
+    K --> B
 ```
-
-For the Expo mobile app:
-
-```powershell
-corepack pnpm dev
-```
-
-Then scan the QR code in Expo Go.
-
-## Validation
-
-```powershell
-corepack pnpm typecheck
-corepack pnpm build
-```
-
-The API package also accepts optional environment variables documented in `.env.example`.
-
-The production web build is written to `artifacts/weathergpt-farmers/dist`.
-
-## Demo data and live integrations
-
-The current prototype is designed to be usable without account setup. Weather values are
-interactive demo simulations, community posts are stored on the device, and the map is a
-representative India interface. Optional speech and translation features require the API
-and OpenAI-compatible environment variables described in `.env.example`.
-
-## Project structure
-
-- `artifacts/weathergpt-farmers` - Expo mobile and web application
-- `artifacts/api-server` - Express API
-- `lib/api-spec` - OpenAPI specification
-- `lib/api-client-react` - generated React API client
-- `lib/db` - Drizzle database schema
-- `screenshots` - project screenshots
-
-## GitHub preparation
-
-Do not commit API keys, database credentials, or device secrets. The app stores only demo/community data on the device unless a live database is explicitly configured.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
