@@ -3,6 +3,8 @@
     "name": "WeatherGPT for Farmers",
     "slug": "weathergpt-farmers",
     "version": "1.0.0",
+    "description": "A multilingual, mobile-first weather companion for Indian farmers.",
+    "primaryColor": "#2D7A4D",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "weathergpt-farmers",

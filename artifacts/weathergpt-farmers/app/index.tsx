@@ -1096,8 +1096,8 @@ export default function HomeScreen() {
         overScrollMode="never"
         bottomOffset={20}
         contentContainerStyle={{
-          paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 67 : 16),
-          paddingBottom: 106 + (Platform.OS === 'web' ? 34 : insets.bottom),
+          paddingTop: Math.max(insets.top, Platform.OS === 'web' ? 24 : 16),
+          paddingBottom: 106 + (Platform.OS === 'web' ? 12 : insets.bottom),
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -1194,7 +1194,7 @@ export default function HomeScreen() {
       </KeyboardAwareScrollView>
 
       {screen !== 'home' ? (
-        <View style={[styles.pageTitle, { top: Math.max(insets.top, Platform.OS === 'web' ? 67 : 16) }]}>
+        <View style={[styles.pageTitle, { top: Math.max(insets.top, Platform.OS === 'web' ? 24 : 16) }]}>
           <Pressable
             onPress={() => selectScreen('home')}
             accessibilityLabel={copy.common.back}
@@ -2445,7 +2445,18 @@ function BottomNav({
     { id: 'community', label: copy.nav.farmers, icon: 'users' },
   ];
   return (
-    <View style={[styles.bottomNav, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 34 : 10) }]}>
+    <View style={[
+      styles.bottomNav,
+      {
+        backgroundColor: colors.card,
+        borderColor: colors.border,
+        paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 12 : 10),
+        left: Platform.OS === 'web' ? '50%' : 0,
+        right: Platform.OS === 'web' ? 'auto' : 0,
+        width: Platform.OS === 'web' ? '100%' : '100%',
+        transform: Platform.OS === 'web' ? [{ translateX: -280 }] : [],
+      },
+    ]}>
       {items.map((item) => {
         const isActive = active === item.id;
         return (
@@ -2822,7 +2833,7 @@ function ProfileView({
 }
 
 const styles = StyleSheet.create({
-  app: { flex: 1 },
+  app: { flex: 1, width: '100%', maxWidth: 560, alignSelf: 'center' },
   voiceErrorBox: { marginHorizontal: 18, marginTop: 12, padding: 11, borderRadius: 14, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   voiceErrorText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 11, lineHeight: 16 },
   headerRow: {
@@ -2998,7 +3009,7 @@ const styles = StyleSheet.create({
   emptyState: { marginHorizontal: 18, borderRadius: 19, borderWidth: 1, padding: 28, alignItems: 'center', gap: 8 },
   emptyTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 },
   emptyText: { fontFamily: 'Inter_400Regular', fontSize: 12 },
-  bottomNav: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopWidth: 1, flexDirection: 'row', justifyContent: 'space-around', paddingTop: 8, shadowColor: '#173126', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -3 }, elevation: 8 },
+  bottomNav: { position: 'absolute', bottom: 0, maxWidth: 560, borderTopWidth: 1, flexDirection: 'row', justifyContent: 'space-around', paddingTop: 8, shadowColor: '#173126', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: -3 }, elevation: 8 },
   navItem: { alignItems: 'center', minWidth: 65, gap: 3 },
   navIconWrap: { width: 38, height: 28, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   navLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
